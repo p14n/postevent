@@ -23,3 +23,8 @@ jar {
         attributes 'Main-Class': 'com.p14n.postevent.Main'
     }
 }
+
+task runHello(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.p14n.postevent.HelloWorld'
+}
