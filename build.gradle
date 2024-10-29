@@ -24,7 +24,8 @@ jar {
     }
 }
 
-task runHello(type: JavaExec) {
+task run(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.p14n.postevent.HelloWorld'
+    mainClass = 'com.p14n.postevent.Main'
 }
+
