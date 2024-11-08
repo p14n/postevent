@@ -11,6 +11,8 @@ repositories {
 }
 
 dependencies {
+    implementation 'io.debezium:debezium-embedded:2.5.1.Final'
+    implementation 'io.debezium:debezium-connector-postgres:2.5.1.Final'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     testImplementation 'io.zonky.test:embedded-postgres:2.0.6'
