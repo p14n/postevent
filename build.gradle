@@ -39,6 +39,10 @@ testlogger {
 
 test {
     useJUnitPlatform()
+    maxHeapSize = "1G"
+    minHeapSize = "512M"
+    maxParallelForks = 1
+    failFast = true
 }
 
 jar {
