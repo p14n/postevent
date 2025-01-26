@@ -18,4 +18,8 @@ public interface PostEventConfig {
     public String dbName();
 
     public Properties overrideProps();
+
+    public default int startupTimeoutSeconds() {
+        return 30;
+    }
 }

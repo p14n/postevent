@@ -8,6 +8,7 @@ import io.debezium.engine.ChangeEvent;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -93,7 +94,10 @@ public class Debezium {
                                 .build();
                 executor = Executors.newSingleThreadExecutor();
                 executor.execute(engine);
-                started.await();
+                executor.execute(engine);
+                if (!started.await(cfg.startupTimeoutSeconds(), TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Debezium engine failed to start within 30 seconds");
+                }
 
         }
 
@@ -102,7 +106,15 @@ public class Debezium {
                         engine.close();
                 }
                 if (executor != null) {
-                        executor.shutdown();
+                        executor.shutdownNow();
+                        try {
+                                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                                        logger.warn("Executor did not terminate in the specified time.");
+                                }
+                        } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                logger.error("Shutdown interrupted", e);
+                        }
                 }
         }
 
