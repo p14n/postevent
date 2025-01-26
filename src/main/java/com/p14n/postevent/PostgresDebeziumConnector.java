@@ -43,6 +43,8 @@ public class PostgresDebeziumConnector {
                 engine.close();
             } catch (IOException e) {
                 throw new RuntimeException("Failed to close Debezium engine", e);
+            } finally {
+                engine = null; // Ensure engine reference is cleared after closing
             }
         }
     }
