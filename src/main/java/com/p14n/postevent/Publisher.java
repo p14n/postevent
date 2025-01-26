@@ -16,11 +16,15 @@ public class Publisher {
      * @param connection The database connection
      * @param topic      The topic/table name to publish to
      * @throws SQLException             if a database access error occurs
-     * @throws IllegalArgumentException if the topic is null or empty
+     * @throws IllegalArgumentException if the topic is null, empty, or contains
+     *                                  invalid characters
      */
     public void publish(Event event, Connection connection, String topic) throws SQLException {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic name cannot be null or empty");
+        }
+        if (!topic.matches("^[a-z_]+$")) {
+            throw new IllegalArgumentException("Topic name must contain only lowercase letters and underscores");
         }
 
         String sql = String.format("""
