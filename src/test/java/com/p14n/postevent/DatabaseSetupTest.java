@@ -39,8 +39,7 @@ class DatabaseSetupTest {
 
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(
-                "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'postevent'"
-            );
+                    "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'postevent'");
             assertTrue(rs.next(), "Schema 'postevent' should exist");
             assertEquals("postevent", rs.getString("schema_name"));
         }
@@ -54,9 +53,8 @@ class DatabaseSetupTest {
 
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(
-                "SELECT table_name FROM information_schema.tables " +
-                "WHERE table_schema = 'postevent' AND table_name = '" + topic + "'"
-            );
+                    "SELECT table_name FROM information_schema.tables " +
+                            "WHERE table_schema = 'postevent' AND table_name = '" + topic + "'");
             assertTrue(rs.next(), "Table '" + topic + "' should exist");
             assertEquals(topic, rs.getString("table_name"));
         }
@@ -70,11 +68,10 @@ class DatabaseSetupTest {
 
         try (Statement stmt = connection.createStatement()) {
             ResultSet rs = stmt.executeQuery(
-                "SELECT column_name, data_type, is_nullable, column_default " +
-                "FROM information_schema.columns " +
-                "WHERE table_schema = 'postevent' AND table_name = '" + topic + "' " +
-                "ORDER BY ordinal_position"
-            );
+                    "SELECT column_name, data_type, is_nullable, column_default " +
+                            "FROM information_schema.columns " +
+                            "WHERE table_schema = 'postevent' AND table_name = '" + topic + "' " +
+                            "ORDER BY ordinal_position");
 
             assertTrue(rs.next());
             assertEquals("idn", rs.getString("column_name"));
@@ -91,7 +88,7 @@ class DatabaseSetupTest {
     @Test
     void shouldBeIdempotent() {
         String topic = "test_topic";
-        
+
         // Execute twice
         assertDoesNotThrow(() -> {
             databaseSetup.createSchemaIfNotExists();
@@ -103,16 +100,10 @@ class DatabaseSetupTest {
 
     @Test
     void shouldThrowExceptionForInvalidTopicName() {
-        assertThrows(IllegalArgumentException.class, () -> 
-            databaseSetup.createTableIfNotExists(null)
-        );
-        
-        assertThrows(IllegalArgumentException.class, () -> 
-            databaseSetup.createTableIfNotExists("")
-        );
-        
-        assertThrows(IllegalArgumentException.class, () -> 
-            databaseSetup.createTableIfNotExists("   ")
-        );
+        assertThrows(IllegalArgumentException.class, () -> databaseSetup.createTableIfNotExists(null));
+
+        assertThrows(IllegalArgumentException.class, () -> databaseSetup.createTableIfNotExists(""));
+
+        assertThrows(IllegalArgumentException.class, () -> databaseSetup.createTableIfNotExists("   "));
     }
 }
