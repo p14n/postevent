@@ -248,3 +248,6 @@ replay_pid*
 
 ### IntelliJ ###
 .idea
+
+### vscode ###
+.vscode
