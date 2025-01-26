@@ -48,7 +48,8 @@ public class Debezium {
                 props.setProperty("snapshot.mode", "no_data");
                 props.setProperty("slot.name", "postevent_" + name + "_" + affinity);
                 props.setProperty("offset.storage.jdbc.offset.table.ddl",
-                                "CREATE TABLE %s (affinityid VARCHAR(255) NOT NULL, id VARCHAR(36) NOT NULL, " +
+                                "CREATE TABLE IF NOT EXISTS %s (affinityid VARCHAR(255) NOT NULL, id VARCHAR(36) NOT NULL, "
+                                                +
                                                 "offset_key VARCHAR(1255), offset_val VARCHAR(1255)," +
                                                 "record_insert_ts TIMESTAMP NOT NULL," +
                                                 "record_insert_seq INTEGER NOT NULL" +
@@ -93,7 +94,6 @@ public class Debezium {
                                 .notifying(consumer)
                                 .build();
                 executor = Executors.newSingleThreadExecutor();
-                executor.execute(engine);
                 executor.execute(engine);
                 if (!started.await(cfg.startupTimeoutSeconds(), TimeUnit.SECONDS)) {
                         throw new IllegalStateException("Debezium engine failed to start within 30 seconds");
