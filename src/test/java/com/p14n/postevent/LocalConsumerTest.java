@@ -94,6 +94,10 @@ class LocalConsumerTest {
         assertEquals(testEvent.id(), actual.id());
         assertEquals(testEvent.source(), actual.source());
         assertEquals(testEvent.type(), actual.type());
+        assertEquals(testEvent.datacontenttype(), actual.datacontenttype());
+        assertEquals(testEvent.dataschema(), actual.dataschema());
+        assertEquals(testEvent.subject(), actual.subject());
         assertArrayEquals(testEvent.data(), actual.data());
+
     }
 }
