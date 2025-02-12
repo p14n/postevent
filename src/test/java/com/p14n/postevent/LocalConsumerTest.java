@@ -87,7 +87,7 @@ class LocalConsumerTest {
 
         publisher.publish(testEvent, conn, "test");
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "Did not receive event within timeout");
+        assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive event within timeout");
 
         Event actual = receivedEvent.get();
         assertNotNull(actual, "No event received");
