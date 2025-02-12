@@ -22,22 +22,16 @@ public class LocalConsumer {
     public void start() throws IOException, InterruptedException {
         Consumer<ChangeEvent<String, String>> consumer = record -> {
             try {
+                var actualObj = mapper.readTree(record.value());
+                var r = actualObj.get("payload").get("after");
 
-                try {
-                    var actualObj = mapper.readTree(record.value());
-                    var r = actualObj.get("payload").get("after");
-
-                    broker.publish(Event.create(r.get("id").asText(),
-                            r.get("source").asText(),
-                            r.get("type").asText(),
-                            r.get("datacontenttype").asText(),
-                            r.get("dataschema").asText(),
-                            r.get("subject").asText(),
-                            r.get("data").binaryValue()));
-
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
+                broker.publish(Event.create(r.get("id").asText(),
+                        r.get("source").asText(),
+                        r.get("type").asText(),
+                        r.get("datacontenttype").asText(),
+                        r.get("dataschema").asText(),
+                        r.get("subject").asText(),
+                        r.get("data").binaryValue()));
 
             } catch (Exception e) {
                 throw new RuntimeException("Failed to process change event", e);
