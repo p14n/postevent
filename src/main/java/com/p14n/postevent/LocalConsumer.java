@@ -4,7 +4,6 @@ import io.debezium.engine.ChangeEvent;
 import java.io.IOException;
 import java.util.function.Consumer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class LocalConsumer {
