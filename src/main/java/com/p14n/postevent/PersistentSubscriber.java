@@ -20,26 +20,46 @@ public class PersistentSubscriber implements MessageSubscriber<Event> {
 
     @Override
     public void onMessage(Event event) {
-        try (Connection conn = dataSource.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
-
+        Connection conn = null;
+        try {
+            conn = dataSource.getConnection();
             conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
+                stmt.setString(1, event.id());
+                stmt.setString(2, event.source());
+                stmt.setString(3, event.datacontenttype());
+                stmt.setString(4, event.dataschema());
+                stmt.setString(5, event.subject());
+                stmt.setBytes(6, event.data());
 
-            stmt.setString(1, event.id());
-            stmt.setString(2, event.source());
-            stmt.setString(3, event.datacontenttype());
-            stmt.setString(4, event.dataschema());
-            stmt.setString(5, event.subject());
-            stmt.setBytes(6, event.data());
-
-            stmt.executeUpdate();
+                stmt.executeUpdate();
+            }
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
             targetSubscriber.onMessage(event);
 
         } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    if (!conn.isClosed()) {
+                        conn.rollback();
+                    }
+                } catch (SQLException rollbackEx) {
+                    e.addSuppressed(rollbackEx);
+                }
+            }
             throw new RuntimeException("Failed to persist and forward event", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    if (!conn.isClosed()) {
+                        conn.close();
+                    }
+                } catch (SQLException closeEx) {
+                    // Optionally log the closing exception
+                }
+            }
         }
     }
 
