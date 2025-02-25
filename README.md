@@ -11,20 +11,19 @@ A library to publish and receive events using postgres and grpc
 
 
 Create a local Event consumer
-* Publish a message to the event topic
-* Consume the message from the event topic
-* Ensure the message received is the same as the message published
+[x] Publish a message to the event topic
+[x] Consume the message from the event topic
+[x] Ensure the message received is the same as the message published
 
 Create a persistent Event consumer
-* Publish a message to the event topic
-* Message received is first stored in the database, then sent to the consumer
-
+[] Publish a message to the event topic
+[] Message received is first stored in the database, then sent to the consumer
 
 Create a catchup mechanism
-* Request a batch of messages from the server (starting from?)
-* Write each message to the consumer
-* Stop when the catchup mechanism detects that it is overwriting the live messages
+[] Request a batch of messages from the server (starting from?)
+[] Write each message to the consumer
+[] Stop when the catchup mechanism detects that it is overwriting the live messages
 
 Create a processor
-* Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
-* Verifies that there are no earlier unprocessed events for the same subject
+[] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
+[] Verifies that there are no earlier unprocessed events for the same subject
