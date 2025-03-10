@@ -41,13 +41,16 @@ public class CatchupService {
         // Find the next gap end (lowest idn greater than hwm)
         long gapEnd = findGapEnd(currentHwm);
 
+        LOGGER.info(String.format("Current HWM %d highest message in gap %d",
+                currentHwm, gapEnd));
+
         if (gapEnd <= currentHwm) {
             LOGGER.info("No new events to process for subscriber: " + subscriberName);
             return 0;
         }
 
         // Fetch events from catchup server
-        List<Event> events = catchupServer.fetchEvents(currentHwm + 1, gapEnd, DEFAULT_BATCH_SIZE);
+        List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, DEFAULT_BATCH_SIZE);
 
         if (events.isEmpty()) {
             LOGGER.info("No events found in range for subscriber: " + subscriberName);
@@ -95,7 +98,7 @@ public class CatchupService {
     }
 
     private long findGapEnd(long currentHwm) throws SQLException {
-        String sql = "SELECT MIN(idn) as next_idn FROM postevent." + topic + " WHERE idn > ?";
+        String sql = "SELECT MIN(idn) as next_idn FROM postevent.messages WHERE idn > ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, currentHwm);

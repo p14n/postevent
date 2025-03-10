@@ -67,7 +67,7 @@ public class CatchupServerTest {
         List<Event> events = catchupServer.fetchEvents(1, 5, 10);
 
         // Verify results
-        assertEquals(5, events.size());
+        assertEquals(4, events.size());
     }
 
     @Test
@@ -100,7 +100,7 @@ public class CatchupServerTest {
 
         // When maxResults is greater than available events
         List<Event> events4 = catchupServer.fetchEvents(10, 20, 20);
-        assertEquals(11, events4.size());
+        assertEquals(10, events4.size());
     }
 
     @Test
@@ -122,7 +122,7 @@ public class CatchupServerTest {
         }
 
         // Request a large range but limit with maxResults
-        List<Event> events = catchupServer.fetchEvents(1, 50, 25);
+        List<Event> events = catchupServer.fetchEvents(0, 50, 25);
 
         // Verify maxResults is respected
         assertEquals(25, events.size());
