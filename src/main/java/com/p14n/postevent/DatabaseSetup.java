@@ -72,7 +72,7 @@ public class DatabaseSetup {
 
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.messages (
-                        idn bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                        idn bigint PRIMARY KEY NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
                         datacontenttype VARCHAR(255),

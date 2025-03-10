@@ -115,8 +115,8 @@ public class CatchupService {
         int count = 0;
         String sql = """
                 INSERT INTO postevent.messages
-                (id, source, datacontenttype, dataschema, subject, data)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (id, source, datacontenttype, dataschema, subject, data, idn)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
                 """;
 
@@ -128,6 +128,7 @@ public class CatchupService {
                 stmt.setString(4, event.dataschema());
                 stmt.setString(5, event.subject());
                 stmt.setBytes(6, event.data());
+                stmt.setLong(7, event.idn());
 
                 count += stmt.executeUpdate();
             }

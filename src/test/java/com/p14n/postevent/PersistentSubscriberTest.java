@@ -45,7 +45,7 @@ class PersistentSubscriberTest {
         // Create test event
         Event testEvent = Event.create(
                 "test-123", "test-source", "test-type", "text/plain",
-                "test-schema", "test-subject", "test-data".getBytes());
+                "test-schema", "test-subject", "test-data".getBytes(), 1L);
 
         // Test the subscriber
         persistentSubscriber.onMessage(testEvent);

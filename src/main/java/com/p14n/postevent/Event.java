@@ -26,6 +26,18 @@ public record Event(
             String dataschema,
             String subject,
             byte[] data) {
+        return create(id, source, type, datacontenttype, dataschema, subject, data, null);
+    }
+
+    public static Event create(
+            String id,
+            String source,
+            String type,
+            String datacontenttype,
+            String dataschema,
+            String subject,
+            byte[] data,
+            Long idn) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("id cannot be null or empty");
         }
@@ -36,6 +48,6 @@ public record Event(
             throw new IllegalArgumentException("type cannot be null or empty");
         }
 
-        return new Event(id, source, type, datacontenttype, dataschema, subject, data, null);
+        return new Event(id, source, type, datacontenttype, dataschema, subject, data, idn);
     }
 }
