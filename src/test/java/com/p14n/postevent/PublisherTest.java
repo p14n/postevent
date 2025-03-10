@@ -69,7 +69,7 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(), null);
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -93,14 +93,14 @@ class PublisherTest {
 
     @Test
     void shouldThrowExceptionForEmptyTopic() {
-        Event event = new Event("id", "source", "type", null, null, null, null);
+        Event event = new Event("id", "source", "type", null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, ""));
     }
 
     @Test
     void shouldThrowExceptionForNullTopic() {
-        Event event = new Event("id", "source", "type", null, null, null, null);
+        Event event = new Event("id", "source", "type", null, null, null, null, null);
 
         assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, null));
     }
@@ -115,7 +115,7 @@ class PublisherTest {
                 null, // null datacontenttype
                 null, // null dataschema
                 null, // null subject
-                null); // null data
+                null, null); // null data
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -136,7 +136,7 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                largeData);
+                largeData, null);
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -155,7 +155,7 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(), null);
         conn.close();
 
         // When/Then
@@ -172,7 +172,7 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(), null);
 
         // When/Then
         assertThrows(SQLException.class, () -> publisher.publish(event, conn, "non_existent_topic"));
@@ -198,7 +198,7 @@ class PublisherTest {
                             "application/json",
                             "test-schema",
                             "test-subject",
-                            "test-data".getBytes());
+                            "test-data".getBytes(), null);
                     publisher.publish(event, conn, "test_topic");
                     latch.countDown();
                 } catch (SQLException e) {

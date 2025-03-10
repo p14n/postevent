@@ -21,29 +21,13 @@ class PersistentSubscriberTest {
     @BeforeEach
     void setUp() throws Exception {
         pg = EmbeddedPostgres.builder().start();
+
+        // Create schema and messages table
+        new DatabaseSetup(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres")
+                .createSchemaIfNotExists()
+                .createMessagesTableIfNotExists();
+
         conn = pg.getPostgresDatabase().getConnection();
-
-        // Add schema creation
-        try (Connection conn = pg.getPostgresDatabase().getConnection()) {
-            conn.createStatement().execute("CREATE SCHEMA IF NOT EXISTS postevent");
-        }
-
-        // Create test table
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS postevent.messages (
-                        idn BIGSERIAL PRIMARY KEY,
-                        id VARCHAR(255),
-                        source VARCHAR(1024),
-                        datacontenttype VARCHAR(255),
-                        dataschema VARCHAR(255),
-                        subject VARCHAR(255),
-                        data BYTEA,
-                        time TIMESTAMP WITH TIME ZONE
-                    )
-                    """);
-        }
-
         mockSubscriber = Mockito.mock(MessageSubscriber.class);
         persistentSubscriber = new PersistentSubscriber(mockSubscriber, pg.getPostgresDatabase());
     }
@@ -61,7 +45,7 @@ class PersistentSubscriberTest {
         // Create test event
         Event testEvent = Event.create(
                 "test-123", "test-source", "test-type", "text/plain",
-                "test-schema", "test-subject", "test-data".getBytes());
+                "test-schema", "test-subject", "test-data".getBytes(), 1L);
 
         // Test the subscriber
         persistentSubscriber.onMessage(testEvent);
