@@ -1,4 +1,4 @@
-package com.p14n.postevent;
+package com.p14n.postevent.broker;
 
 /**
  * Interface for message subscribers that can receive messages and error notifications.

@@ -1,5 +1,9 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.catchup.PersistentSubscriber;
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +12,8 @@ import org.mockito.Mockito;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Instant;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 
@@ -45,7 +51,7 @@ class PersistentSubscriberTest {
         // Create test event
         Event testEvent = Event.create(
                 "test-123", "test-source", "test-type", "text/plain",
-                "test-schema", "test-subject", "test-data".getBytes(), 1L);
+                "test-schema", "test-subject", "test-data".getBytes(), Instant.now(),1L);
 
         // Test the subscriber
         persistentSubscriber.onMessage(testEvent);

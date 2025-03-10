@@ -1,5 +1,7 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.DatabaseSetup;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,14 +64,7 @@ class PublisherTest {
     @Test
     void shouldPublishEventSuccessfully() throws SQLException {
         // Given
-        Event event = new Event(
-                "test-id",
-                "test-source",
-                "test-type",
-                "application/json",
-                "test-schema",
-                "test-subject",
-                "test-data".getBytes(), null);
+        Event event = TestUtil.createTestEvent(0);
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -93,14 +88,14 @@ class PublisherTest {
 
     @Test
     void shouldThrowExceptionForEmptyTopic() {
-        Event event = new Event("id", "source", "type", null, null, null, null, null);
+        Event event = TestUtil.createTestEvent(0);
 
         assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, ""));
     }
 
     @Test
     void shouldThrowExceptionForNullTopic() {
-        Event event = new Event("id", "source", "type", null, null, null, null, null);
+        Event event = TestUtil.createTestEvent(0);
 
         assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, null));
     }
@@ -108,14 +103,7 @@ class PublisherTest {
     @Test
     void shouldHandleNullFields() throws SQLException {
         // Given
-        Event event = new Event(
-                "test-id",
-                "test-source",
-                "test-type",
-                null, // null datacontenttype
-                null, // null dataschema
-                null, // null subject
-                null, null); // null data
+        Event event = TestUtil.createTestEvent(0);
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -129,14 +117,15 @@ class PublisherTest {
         // Given
         byte[] largeData = new byte[10 * 1024 * 1024]; // 10MB payload
         new Random().nextBytes(largeData);
-        Event event = new Event(
+
+        Event event = Event.create(
                 "test-id",
                 "test-source",
                 "test-type",
                 "application/json",
                 "test-schema",
                 "test-subject",
-                largeData, null);
+                largeData);
 
         // When
         publisher.publish(event, conn, "test_topic");
@@ -148,14 +137,14 @@ class PublisherTest {
     @Test
     void shouldHandleClosedConnection() throws SQLException {
         // Given
-        Event event = new Event(
+        Event event = Event.create(
                 "test-id",
                 "test-source",
                 "test-type",
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes(), null);
+                "test-data".getBytes());
         conn.close();
 
         // When/Then
@@ -165,14 +154,14 @@ class PublisherTest {
     @Test
     void shouldHandleNonExistentTable() throws SQLException {
         // Given
-        Event event = new Event(
+        Event event = Event.create(
                 "test-id",
                 "test-source",
                 "test-type",
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes(), null);
+                "test-data".getBytes());
 
         // When/Then
         assertThrows(SQLException.class, () -> publisher.publish(event, conn, "non_existent_topic"));
@@ -191,14 +180,14 @@ class PublisherTest {
             final String id = "test-id-" + i;
             futures.add(executor.submit(() -> {
                 try {
-                    Event event = new Event(
+                    Event event = Event.create(
                             id,
                             "test-source",
                             "test-type",
                             "application/json",
                             "test-schema",
                             "test-subject",
-                            "test-data".getBytes(), null);
+                            "test-data".getBytes());
                     publisher.publish(event, conn, "test_topic");
                     latch.countDown();
                 } catch (SQLException e) {

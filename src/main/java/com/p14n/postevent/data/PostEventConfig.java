@@ -1,4 +1,4 @@
-package com.p14n.postevent;
+package com.p14n.postevent.data;
 
 import java.util.Properties;
 

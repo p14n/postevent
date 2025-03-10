@@ -1,4 +1,6 @@
-package com.p14n.postevent;
+package com.p14n.postevent.data;
+
+import java.time.Instant;
 
 /**
  * Record representing an event to be published to the database.
@@ -11,6 +13,7 @@ public record Event(
         String dataschema,
         String subject,
         byte[] data,
+        Instant time,
         Long idn) {
 
     /**
@@ -26,7 +29,7 @@ public record Event(
             String dataschema,
             String subject,
             byte[] data) {
-        return create(id, source, type, datacontenttype, dataschema, subject, data, null);
+        return create(id, source, type, datacontenttype, dataschema, subject, data,null, null);
     }
 
     public static Event create(
@@ -37,6 +40,7 @@ public record Event(
             String dataschema,
             String subject,
             byte[] data,
+            Instant time,
             Long idn) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("id cannot be null or empty");
@@ -48,6 +52,6 @@ public record Event(
             throw new IllegalArgumentException("type cannot be null or empty");
         }
 
-        return new Event(id, source, type, datacontenttype, dataschema, subject, data, idn);
+        return new Event(id, source, type, datacontenttype, dataschema, subject, data, time, idn);
     }
 }

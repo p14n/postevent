@@ -1,5 +1,11 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.data.PostEventConfig;
+import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,10 +86,10 @@ class LocalConsumerTest {
         localConsumer.start();
 
         // Create and publish test event
-        Event testEvent = new Event(
+        Event testEvent = Event.create(
                 "test-id", "test-source", "test-type",
                 "text/plain", "test-schema", "test-subject",
-                "test-data".getBytes(), null);
+                "test-data".getBytes());
 
         publisher.publish(testEvent, conn, "test");
 

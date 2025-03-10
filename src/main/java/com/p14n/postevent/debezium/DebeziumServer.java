@@ -1,6 +1,8 @@
-package com.p14n.postevent;
+package com.p14n.postevent.debezium;
 
 import java.util.Properties;
+
+import com.p14n.postevent.data.PostEventConfig;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.format.Json;
 import io.debezium.engine.ChangeEvent;
@@ -14,8 +16,8 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Debezium {
-        private static final Logger logger = LoggerFactory.getLogger(Debezium.class);
+public class DebeziumServer {
+        private static final Logger logger = LoggerFactory.getLogger(DebeziumServer.class);
 
         public static Properties props(
                         String affinity,
@@ -69,7 +71,7 @@ public class Debezium {
         private DebeziumEngine<ChangeEvent<String, String>> engine;
 
         public void start(PostEventConfig cfg,
-                        Consumer<ChangeEvent<String, String>> consumer) throws IOException, InterruptedException {
+                          Consumer<ChangeEvent<String, String>> consumer) throws IOException, InterruptedException {
                 if (consumer == null) {
                         throw new IllegalStateException("Change event consumer must be set before starting the engine");
                 }

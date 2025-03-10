@@ -1,8 +1,12 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.data.Event;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
+import static com.p14n.postevent.db.SQL.setEventOnStatement;
 
 /**
  * Publisher class responsible for writing events to a PostgreSQL database.
@@ -34,15 +38,9 @@ public class Publisher {
                 """, topic);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, event.id());
-            stmt.setString(2, event.source());
-            stmt.setString(3, event.type());
-            stmt.setString(4, event.datacontenttype());
-            stmt.setString(5, event.dataschema());
-            stmt.setString(6, event.subject());
-            stmt.setBytes(7, event.data());
-
+            setEventOnStatement(stmt,event);
             stmt.executeUpdate();
         }
     }
+
 }

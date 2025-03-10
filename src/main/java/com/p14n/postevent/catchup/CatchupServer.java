@@ -1,4 +1,7 @@
-package com.p14n.postevent;
+package com.p14n.postevent.catchup;
+
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.SQL;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -45,15 +48,7 @@ public class CatchupServer {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Event event = new Event(
-                            rs.getString("id"),
-                            rs.getString("source"),
-                            rs.getString("type"),
-                            rs.getString("datacontenttype"),
-                            rs.getString("dataschema"),
-                            rs.getString("subject"),
-                            rs.getBytes("data"),
-                            rs.getLong("idn"));
+                    Event event = SQL.eventFromResultSet(rs);
                     events.add(event);
                 }
             }
@@ -68,4 +63,6 @@ public class CatchupServer {
             throw new RuntimeException("Failed to fetch events", e);
         }
     }
+
+
 }

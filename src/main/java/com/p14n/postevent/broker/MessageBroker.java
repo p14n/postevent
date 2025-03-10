@@ -1,4 +1,4 @@
-package com.p14n.postevent;
+package com.p14n.postevent.broker;
 
 /**
  * Thread-safe message broker interface for publishing messages and managing subscribers.

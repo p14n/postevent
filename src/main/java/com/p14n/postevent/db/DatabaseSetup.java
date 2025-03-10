@@ -1,4 +1,4 @@
-package com.p14n.postevent;
+package com.p14n.postevent.db;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -78,11 +78,12 @@ public class DatabaseSetup {
                         idn bigint PRIMARY KEY NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
+                        type VARCHAR(255) NOT NULL,
                         datacontenttype VARCHAR(255),
                         dataschema VARCHAR(255),
                         subject VARCHAR(255),
                         data bytea,
-                        time TIMESTAMP WITH TIME ZONE default current_timestamp
+                        time TIMESTAMP WITH TIME ZONE
                     )""";
 
             stmt.execute(sql);

@@ -1,14 +1,16 @@
-package com.p14n.postevent;
+package com.p14n.postevent.catchup;
+
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.db.SQL;
 
 import javax.sql.DataSource;
 import java.sql.*;
 
 public class PersistentSubscriber implements MessageSubscriber<Event> {
-    private static final String INSERT_SQL = """
-            INSERT INTO postevent.messages (
-                id, source, datacontenttype, dataschema, subject, data, time, idn
-            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-            """;
+    private static final String INSERT_SQL =
+            "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
+                    ") VALUES (" + SQL.EXT_PH + ")";
 
     private final MessageSubscriber<Event> targetSubscriber;
     private final DataSource dataSource;
@@ -25,13 +27,8 @@ public class PersistentSubscriber implements MessageSubscriber<Event> {
             conn = dataSource.getConnection();
             conn.setAutoCommit(false);
             try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL)) {
-                stmt.setString(1, event.id());
-                stmt.setString(2, event.source());
-                stmt.setString(3, event.datacontenttype());
-                stmt.setString(4, event.dataschema());
-                stmt.setString(5, event.subject());
-                stmt.setBytes(6, event.data());
-                stmt.setLong(7, event.idn());
+                SQL.setEventOnStatement(stmt,event);
+                SQL.setTimeAndIDn(stmt,event);
                 stmt.executeUpdate();
             }
             conn.commit();
