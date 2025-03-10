@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,11 +30,11 @@ public class CatchupServerTest {
 
         // Setup database
         DatabaseSetup setup = new DatabaseSetup(jdbcUrl, "postgres", "postgres");
-        setup.createSchema();
-        setup.createTopic(TEST_TOPIC);
+        setup.createSchemaIfNotExists();
+        setup.createTableIfNotExists(TEST_TOPIC);
 
         // Create publisher and catchup server
-        publisher = new Publisher(jdbcUrl, "postgres", "postgres");
+        publisher = new Publisher();
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
     }
 
@@ -46,16 +48,19 @@ public class CatchupServerTest {
     @Test
     public void testFetchEvents() throws Exception {
         // Publish some test events
-        for (int i = 0; i < 10; i++) {
-            Event event = new Event(
-                    UUID.randomUUID().toString(),
-                    "test-source",
-                    "test-type",
-                    "application/json",
-                    null,
-                    "test-subject",
-                    ("{\"value\":" + i + "}").getBytes());
-            publisher.publish(TEST_TOPIC, event);
+        try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
+                "postgres")) {
+            for (int i = 0; i < 10; i++) {
+                Event event = new Event(
+                        UUID.randomUUID().toString(),
+                        "test-source",
+                        "test-type",
+                        "application/json",
+                        null,
+                        "test-subject",
+                        ("{\"value\":" + i + "}").getBytes());
+                publisher.publish(event, connection, TEST_TOPIC);
+            }
         }
 
         // Fetch events
@@ -68,16 +73,19 @@ public class CatchupServerTest {
     @Test
     public void testMaxResultsIsRespected() throws Exception {
         // Publish 20 test events
-        for (int i = 0; i < 20; i++) {
-            Event event = new Event(
-                    UUID.randomUUID().toString(),
-                    "test-source",
-                    "test-type",
-                    "application/json",
-                    null,
-                    "test-subject",
-                    ("{\"value\":" + i + "}").getBytes());
-            publisher.publish(TEST_TOPIC, event);
+        try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
+                "postgres")) {
+            for (int i = 0; i < 20; i++) {
+                Event event = new Event(
+                        UUID.randomUUID().toString(),
+                        "test-source",
+                        "test-type",
+                        "application/json",
+                        null,
+                        "test-subject",
+                        ("{\"value\":" + i + "}").getBytes());
+                publisher.publish(event, connection, TEST_TOPIC);
+            }
         }
 
         // Test with different maxResults values
@@ -98,16 +106,19 @@ public class CatchupServerTest {
     @Test
     public void testMaxResultsLimitsLargeRange() throws Exception {
         // Publish 50 test events
-        for (int i = 0; i < 50; i++) {
-            Event event = new Event(
-                    UUID.randomUUID().toString(),
-                    "test-source",
-                    "test-type",
-                    "application/json",
-                    null,
-                    "test-subject",
-                    ("{\"value\":" + i + "}").getBytes());
-            publisher.publish(TEST_TOPIC, event);
+        try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
+                "postgres")) {
+            for (int i = 0; i < 50; i++) {
+                Event event = new Event(
+                        UUID.randomUUID().toString(),
+                        "test-source",
+                        "test-type",
+                        "application/json",
+                        null,
+                        "test-subject",
+                        ("{\"value\":" + i + "}").getBytes());
+                publisher.publish(event, connection, TEST_TOPIC);
+            }
         }
 
         // Request a large range but limit with maxResults
@@ -117,11 +128,11 @@ public class CatchupServerTest {
         assertEquals(25, events.size());
 
         // Verify we got the first 25 events
-        byte[] firstEventData = events.get(0).getData();
+        byte[] firstEventData = events.get(0).data();
         String firstEventJson = new String(firstEventData);
         assertTrue(firstEventJson.contains("\"value\":0"));
 
-        byte[] lastEventData = events.get(24).getData();
+        byte[] lastEventData = events.get(24).data();
         String lastEventJson = new String(lastEventData);
         assertTrue(lastEventJson.contains("\"value\":24"));
     }
