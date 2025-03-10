@@ -35,7 +35,6 @@ Create a catchup mechanism
 - [ ] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
 - [ ] Verifies that there are no earlier unprocessed events for the same subject
 
-TODO
 Create a processor
 - [ ] ?
 
