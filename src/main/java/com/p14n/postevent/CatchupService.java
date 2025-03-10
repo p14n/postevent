@@ -158,6 +158,32 @@ public class CatchupService {
         }
     }
 
+    private static class GapCheckResult {
+        final boolean gapFound;
+        final long lastContiguousIdn;
+
+        GapCheckResult(boolean gapFound, long lastContiguousIdn) {
+            this.gapFound = gapFound;
+            this.lastContiguousIdn = lastContiguousIdn;
+        }
+    }
+
+    private GapCheckResult processMessages(ResultSet rs, long currentHwm) throws SQLException {
+        long expectedNext = currentHwm + 1;
+        long lastContiguousIdn = currentHwm;
+        while (rs.next()) {
+            long actualIdn = rs.getLong("idn");
+            if (actualIdn > expectedNext) {
+                LOGGER.log(Level.INFO, "Gap found: Expected {0}, found {1} (gap of {2})",
+                        new Object[] { expectedNext, actualIdn, actualIdn - expectedNext });
+                return new GapCheckResult(true, lastContiguousIdn);
+            }
+            lastContiguousIdn = actualIdn;
+            expectedNext = actualIdn + 1;
+        }
+        return new GapCheckResult(false, lastContiguousIdn);
+    }
+
     /**
      * Checks for gaps in the message sequence and updates the HWM to the last
      * contiguous message.
@@ -170,45 +196,21 @@ public class CatchupService {
     public boolean hasSequenceGap(String subscriberName, long currentHwm) throws SQLException {
         LOGGER.log(Level.FINE, "Checking for sequence gaps after HWM {0} for subscriber {1}",
                 new Object[] { currentHwm, subscriberName });
-
         String sql = "SELECT idn FROM postevent.messages WHERE idn > ? ORDER BY idn";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, currentHwm);
-
             try (ResultSet rs = stmt.executeQuery()) {
-                long expectedNext = currentHwm + 1;
-                long lastContiguousIdn = currentHwm;
-                boolean gapFound = false;
-
-                while (rs.next()) {
-                    long actualIdn = rs.getLong("idn");
-
-                    if (actualIdn > expectedNext) {
-                        // Gap found
-                        LOGGER.log(Level.INFO, "Gap found: Expected {0}, found {1} (gap of {2})",
-                                new Object[] { expectedNext, actualIdn, actualIdn - expectedNext });
-                        gapFound = true;
-                        break; // Stop processing at the first gap
-                    } else {
-                        // No gap, update last contiguous IDN
-                        lastContiguousIdn = actualIdn;
-                        expectedNext = actualIdn + 1;
-                    }
-                }
-
-                // If we processed at least one message, update the HWM
-                if (lastContiguousIdn > currentHwm) {
+                GapCheckResult result = processMessages(rs, currentHwm);
+                if (result.lastContiguousIdn > currentHwm) {
                     LOGGER.log(Level.INFO, "Updating HWM from {0} to {1} for subscriber {2}",
-                            new Object[] { currentHwm, lastContiguousIdn, subscriberName });
-                    updateHwm(subscriberName, currentHwm, lastContiguousIdn);
+                            new Object[] { currentHwm, result.lastContiguousIdn, subscriberName });
+                    updateHwm(subscriberName, currentHwm, result.lastContiguousIdn);
                 }
-
-                if (!gapFound) {
+                if (!result.gapFound) {
                     LOGGER.log(Level.INFO, "No sequence gaps found after HWM for subscriber {0}", subscriberName);
                 }
-
-                return gapFound;
+                return result.gapFound;
             }
         }
     }
