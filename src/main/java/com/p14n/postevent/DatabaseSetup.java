@@ -92,6 +92,26 @@ public class DatabaseSetup {
         return this;
     }
 
+    public DatabaseSetup createContiguousHwmTableIfNotExists() {
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement()) {
+
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS postevent.contiguous_hwm (
+                        subscriber_name VARCHAR(255) PRIMARY KEY,
+                        hwm BIGINT NOT NULL
+                    )""";
+
+            stmt.execute(sql);
+            LOGGER.info("Contiguous HWM table creation completed successfully");
+
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error creating contiguous_hwm table", e);
+            throw new RuntimeException("Failed to create contiguous_hwm table", e);
+        }
+        return this;
+    }
+
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(jdbcUrl, username, password);
     }
