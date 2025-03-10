@@ -83,7 +83,7 @@ class LocalConsumerTest {
         Event testEvent = new Event(
                 "test-id", "test-source", "test-type",
                 "text/plain", "test-schema", "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(), null);
 
         publisher.publish(testEvent, conn, "test");
 

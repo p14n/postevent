@@ -58,7 +58,7 @@ public class CatchupServerTest {
                         "application/json",
                         null,
                         "test-subject",
-                        ("{\"value\":" + i + "}").getBytes());
+                        ("{\"value\":" + i + "}").getBytes(), null);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }
@@ -83,7 +83,7 @@ public class CatchupServerTest {
                         "application/json",
                         null,
                         "test-subject",
-                        ("{\"value\":" + i + "}").getBytes());
+                        ("{\"value\":" + i + "}").getBytes(), null);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }
@@ -116,7 +116,7 @@ public class CatchupServerTest {
                         "application/json",
                         null,
                         "test-subject",
-                        ("{\"value\":" + i + "}").getBytes());
+                        ("{\"value\":" + i + "}").getBytes(), null);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }

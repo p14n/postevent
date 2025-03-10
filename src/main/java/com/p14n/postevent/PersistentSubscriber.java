@@ -6,8 +6,8 @@ import java.sql.*;
 public class PersistentSubscriber implements MessageSubscriber<Event> {
     private static final String INSERT_SQL = """
             INSERT INTO postevent.messages (
-                id, source, datacontenttype, dataschema, subject, data, time
-            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                id, source, datacontenttype, dataschema, subject, data, time, idn
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
             """;
 
     private final MessageSubscriber<Event> targetSubscriber;
@@ -31,7 +31,7 @@ public class PersistentSubscriber implements MessageSubscriber<Event> {
                 stmt.setString(4, event.dataschema());
                 stmt.setString(5, event.subject());
                 stmt.setBytes(6, event.data());
-
+                stmt.setLong(7, event.idn());
                 stmt.executeUpdate();
             }
             conn.commit();

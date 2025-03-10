@@ -52,7 +52,8 @@ public class CatchupServer {
                             rs.getString("datacontenttype"),
                             rs.getString("dataschema"),
                             rs.getString("subject"),
-                            rs.getBytes("data"));
+                            rs.getBytes("data"),
+                            rs.getLong("idn"));
                     events.add(event);
                 }
             }
