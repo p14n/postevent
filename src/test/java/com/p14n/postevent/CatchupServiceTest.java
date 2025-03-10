@@ -11,11 +11,13 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CatchupServiceTest {
@@ -79,6 +81,14 @@ public class CatchupServiceTest {
                 from postevent.test_events
                 where idn = (select max(idn) from postevent.test_events)
                 """);
+    }
+
+    private void copyEventsToMessages(long lowestIdn) throws Exception {
+        connection.createStatement().execute("""
+                INSERT INTO postevent.messages (id, source, datacontenttype, dataschema, subject, data, idn)
+                select id, source, datacontenttype, dataschema, subject, data, idn
+                from postevent.test_events
+                where idn >= """ + lowestIdn);
     }
 
     @Test
@@ -191,15 +201,126 @@ public class CatchupServiceTest {
         assertTrue(newHwm > initialHwm, "HWM should have increased");
     }
 
-    private long getCurrentHwm(String subscriberName) throws Exception {
-        String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE subscriber_name = ?";
+    @Test
+    public void testHasSequenceGapWithNoGap() throws Exception {
+        // Publish sequential events
+        log.debug("Publishing 5 sequential events");
+        for (int i = 0; i < 5; i++) {
+            Event event = new Event(
+                    UUID.randomUUID().toString(),
+                    "test-source",
+                    "test-type",
+                    "application/json",
+                    null,
+                    "test-subject",
+                    ("{\"value\":" + i + "}").getBytes(),
+                    null);
+            publisher.publish(event, connection, TEST_TOPIC);
+        }
+
+        copyEventsToMessages(0);
+
+        // Initialize HWM to 0
+        initializeHwm(SUBSCRIBER_NAME, 0);
+
+        // Check for gaps
+        boolean hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, 0);
+
+        // Verify no gap was found
+        assertFalse(hasGap, "Should not find any gaps in sequential events");
+
+        // Verify HWM was updated to the last event
+        long newHwm = getCurrentHwm(SUBSCRIBER_NAME);
+        assertEquals(5, newHwm, "HWM should be updated to the last event");
+    }
+
+    @Test
+    public void testHasSequenceGapWithGap() throws Exception {
+        // Create a gap by publishing events with specific IDs
+        // We'll manually insert events with IDNs 1, 2, 3, 5, 6 (gap at 4)
+        log.debug("Publishing events with a gap");
+
+        // First, insert events 1-3
+        for (int i = 1; i <= 3; i++) {
+            Event event = new Event(
+                    UUID.randomUUID().toString(),
+                    "test-source",
+                    "test-type",
+                    "application/json",
+                    null,
+                    "test-subject",
+                    ("{\"value\":" + i + "}").getBytes(),
+                    null);
+            publisher.publish(event, connection, TEST_TOPIC);
+        }
+
+        copyEventsToMessages(0);
+
+        // Then insert events 4-6
+        for (int i = 4; i <= 6; i++) {
+            log.debug("Publishing event {}", i);
+            Event event = new Event(
+                    UUID.randomUUID().toString(),
+                    "test-source",
+                    "test-type",
+                    "application/json",
+                    null,
+                    "test-subject",
+                    ("{\"value\":" + i + "}").getBytes(),
+                    null);
+            publisher.publish(event, connection, TEST_TOPIC);
+        }
+        copyEventsToMessages(5);
+        logEventsInTopicTable();
+        logEventsInMessagesTable();
+
+        // Initialize HWM to 0
+        initializeHwm(SUBSCRIBER_NAME, 0);
+
+        // Check for gaps
+        boolean hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, 0);
+
+        // Verify a gap was found
+        assertTrue(hasGap, "Should find a gap in the sequence");
+
+        // Verify HWM was updated to the last event before the gap
+        long newHwm = getCurrentHwm(SUBSCRIBER_NAME);
+        assertEquals(3, newHwm, "HWM should be updated to the last event before the gap");
+
+    }
+
+    /**
+     * Helper method to initialize HWM for a subscriber
+     */
+    private void initializeHwm(String subscriberName, long hwm) throws SQLException {
+        String sql = "INSERT INTO postevent.contiguous_hwm (subscriber_name, hwm) " +
+                "VALUES (?, ?) " +
+                "ON CONFLICT (subscriber_name) DO UPDATE SET hwm = ?";
+
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, subscriberName);
+            stmt.setLong(2, hwm);
+            stmt.setLong(3, hwm);
+
+            stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Helper method to get current HWM for a subscriber
+     */
+    private long getCurrentHwm(String subscriberName) throws SQLException {
+        String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE subscriber_name = ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, subscriberName);
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getLong("hwm");
+                } else {
+                    return 0;
                 }
-                return 0;
             }
         }
     }
