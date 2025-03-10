@@ -3,9 +3,7 @@ package com.p14n.postevent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,31 +12,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Testcontainers
 public class CatchupServerTest {
 
-    @Container
-    private PostgreSQLContainer<?> pg = new PostgreSQLContainer<>("postgres:13")
-            .withDatabaseName("testdb")
-            .withUsername("postgres")
+    private static final String TEST_TOPIC = "test_topic";
 
+    private EmbeddedPostgres pg;
     private Publisher publisher;
+    private CatchupServer catchupServer;
 
     @BeforeEach
     public void setup() throws Exception {
-        // Setup database
-        DatabaseSetup setup = new DatabaseSetup(
-                pg.getJdbcUrl("postgres", "postgres"),
-                "postgres",
-                "postgres");
-        setup.createSchema();
+        // Setup embedded PostgreSQL
+        pg = EmbeddedPostgres.start();
+        String jdbcUrl = pg.getJdbcUrl("postgres", "postgres");
 
-        
+        // Setup database
+        DatabaseSetup setup = new DatabaseSetup(jdbcUrl, "postgres", "postgres");
+        setup.createSchema();
+        setup.createTopic(TEST_TOPIC);
+
         // Create publisher and catchup server
-        publisher = new Publisher(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres");
+        publisher = new Publisher(jdbcUrl, "postgres", "postgres");
+        catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
+    }
 
     @AfterEach
     public void cleanup() throws Exception {
+        if (pg != null) {
+            pg.close();
+        }
+    }
 
     @Test
     public void testFetchEvents() throws Exception {
@@ -52,38 +55,41 @@ public class CatchupServerTest {
                     null,
                     "test-subject",
                     ("{\"value\":" + i + "}").getBytes());
-         
+            publisher.publish(TEST_TOPIC, event);
+        }
 
-        
         // Fetch events
+        List<Event> events = catchupServer.fetchEvents(1, 5, 10);
 
-        
         // Verify results
+        assertEquals(5, events.size());
+    }
 
     @Test
     public void testMaxResultsIsRespected() throws Exception {
-        // Publish 20 test events (int i = 0; i < 20; i++) {
-
+        // Publish 20 test events
+        for (int i = 0; i < 20; i++) {
+            Event event = new Event(
                     UUID.randomUUID().toString(),
-                    "test-source",         "test-type",
+                    "test-source",
+                    "test-type",
                     "application/json",
-                   null,
+                    null,
                     "test-subject",
                     ("{\"value\":" + i + "}").getBytes());
             publisher.publish(TEST_TOPIC, event);
         }
 
-    // Test with different maxResults values
-    List<Event> events1 = catchupServer.fetchEvents(1, 20, 5);
+        // Test with different maxResults values
+        List<Event> events1 = catchupServer.fetchEvents(1, 20, 5);
+        assertEquals(5, events1.size());
 
-    assertEquals(5, events1.size());
-        
         List<Event> events2 = catchupServer.fetchEvents(1, 20, 10);
         assertEquals(10, events2.size());
-        
+
         List<Event> events3 = catchupServer.fetchEvents(1, 20, 15);
         assertEquals(15, events3.size());
-        
+
         // When maxResults is greater than available events
         List<Event> events4 = catchupServer.fetchEvents(10, 20, 20);
         assertEquals(11, events4.size());
