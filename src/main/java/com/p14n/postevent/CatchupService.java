@@ -157,4 +157,58 @@ public class CatchupService {
             }
         }
     }
+
+    /**
+     * Checks for gaps in the message sequence and updates the HWM to the last contiguous message.
+     * 
+     * @param subscriberName The name of the subscriber
+     * @param currentHwm The current high water mark to start checking from
+     * @return true if a gap was found, false if no gaps were found
+     * @throws SQLException If a database error occurs
+     */
+    public boolean hasSequenceGap(String subscriberName, long currentHwm) throws SQLException {
+        LOGGER.log(Level.FINE, "Checking for sequence gaps after HWM {0} for subscriber {1}", 
+                   new Object[]{currentHwm, subscriberName});
+        
+        String sql = "SELECT idn FROM postevent.messages WHERE idn > ? ORDER BY idn";
+        
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setLong(1, currentHwm);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                long expectedNext = currentHwm + 1;
+                long lastContiguousIdn = currentHwm;
+                boolean gapFound = false;
+                
+                while (rs.next()) {
+                    long actualIdn = rs.getLong("idn");
+                    
+                    if (actualIdn > expectedNext) {
+                        // Gap found
+                        LOGGER.log(Level.FINE, "Gap found: Expected {0}, found {1} (gap of {2})", 
+                                  new Object[]{expectedNext, actualIdn, actualIdn - expectedNext});
+                        gapFound = true;
+                        break; // Stop processing at the first gap
+                    } else {
+                        // No gap, update last contiguous IDN
+                        lastContiguousIdn = actualIdn;
+                        expectedNext = actualIdn + 1;
+                    }
+                }
+                
+                // If we processed at least one message, update the HWM
+                if (lastContiguousIdn > currentHwm) {
+                    LOGGER.log(Level.FINE, "Updating HWM from {0} to {1} for subscriber {2}", 
+                              new Object[]{currentHwm, lastContiguousIdn, subscriberName});
+                    updateHwm(subscriberName, currentHwm, lastContiguousIdn);
+                }
+                
+                if (!gapFound) {
+                    LOGGER.log(Level.FINE, "No sequence gaps found after HWM for subscriber {0}", subscriberName);
+                }
+                
+                return gapFound;
+            }
+        }
+    }
 }
