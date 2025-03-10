@@ -38,6 +38,9 @@ public class DatabaseSetup {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic name cannot be null or empty");
         }
+        if (!topic.matches("^[A-Za-z_][A-Za-z0-9_]*$")) {
+            throw new IllegalArgumentException("Topic name is not a valid SQL identifier");
+        }
 
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement()) {
