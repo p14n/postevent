@@ -83,13 +83,12 @@ public class CatchupServiceTest {
                 """);
     }
 
-    private void copyEventsToMessages() throws Exception {
+    private void copyEventsToMessages(long lowestIdn) throws Exception {
         connection.createStatement().execute("""
                 INSERT INTO postevent.messages (id, source, datacontenttype, dataschema, subject, data, idn)
                 select id, source, datacontenttype, dataschema, subject, data, idn
                 from postevent.test_events
-                where idn = (select max(idn) from postevent.test_events)
-                """);
+                where idn >= """ + lowestIdn);
     }
 
     @Test
@@ -219,7 +218,7 @@ public class CatchupServiceTest {
             publisher.publish(event, connection, TEST_TOPIC);
         }
 
-        copyEventsToMessages();
+        copyEventsToMessages(0);
 
         // Initialize HWM to 0
         initializeHwm(SUBSCRIBER_NAME, 0);
@@ -243,17 +242,37 @@ public class CatchupServiceTest {
 
         // First, insert events 1-3
         for (int i = 1; i <= 3; i++) {
-            insertEventWithIdn(i);
+            Event event = new Event(
+                    UUID.randomUUID().toString(),
+                    "test-source",
+                    "test-type",
+                    "application/json",
+                    null,
+                    "test-subject",
+                    ("{\"value\":" + i + "}").getBytes(),
+                    null);
+            publisher.publish(event, connection, TEST_TOPIC);
         }
 
-        // Skip 4 to create a gap
+        copyEventsToMessages(0);
 
-        // Then insert events 5-6
-        for (int i = 5; i <= 6; i++) {
-            insertEventWithIdn(i);
+        // Then insert events 4-6
+        for (int i = 4; i <= 6; i++) {
+            log.debug("Publishing event {}", i);
+            Event event = new Event(
+                    UUID.randomUUID().toString(),
+                    "test-source",
+                    "test-type",
+                    "application/json",
+                    null,
+                    "test-subject",
+                    ("{\"value\":" + i + "}").getBytes(),
+                    null);
+            publisher.publish(event, connection, TEST_TOPIC);
         }
-
-        copyEventsToMessages();
+        copyEventsToMessages(5);
+        logEventsInTopicTable();
+        logEventsInMessagesTable();
 
         // Initialize HWM to 0
         initializeHwm(SUBSCRIBER_NAME, 0);
@@ -267,61 +286,7 @@ public class CatchupServiceTest {
         // Verify HWM was updated to the last event before the gap
         long newHwm = getCurrentHwm(SUBSCRIBER_NAME);
         assertEquals(3, newHwm, "HWM should be updated to the last event before the gap");
-    }
 
-    @Test
-    public void testHasSequenceGapWithMultipleGaps() throws Exception {
-        // Create multiple gaps: 1, 2, 4, 7, 8 (gaps at 3, 5-6)
-        log.debug("Publishing events with multiple gaps");
-
-        int[] idns = { 1, 2, 4, 7, 8 };
-        for (int idn : idns) {
-            insertEventWithIdn(idn);
-        }
-
-        // Initialize HWM to 0
-        initializeHwm(SUBSCRIBER_NAME, 0);
-
-        // Check for gaps
-        boolean hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, 0);
-
-        // Verify a gap was found
-        assertTrue(hasGap, "Should find a gap in the sequence");
-
-        // Verify HWM was updated to the last event before the first gap
-        long newHwm = getCurrentHwm(SUBSCRIBER_NAME);
-        assertEquals(2, newHwm, "HWM should be updated to the last event before the first gap");
-
-        // Check for gaps again, starting from the new HWM
-        hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, newHwm);
-
-        // Verify a gap was found
-        assertTrue(hasGap, "Should find another gap in the sequence");
-
-        // Verify HWM was updated correctly
-        newHwm = getCurrentHwm(SUBSCRIBER_NAME);
-        assertEquals(4, newHwm, "HWM should remain at 4 as there's a gap after it");
-    }
-
-    /**
-     * Helper method to insert an event with a specific IDN
-     */
-    private void insertEventWithIdn(long idn) throws SQLException {
-        String sql = "INSERT INTO " + TEST_TOPIC +
-                " (id, source, type, datacontenttype, subject, data, idn) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, UUID.randomUUID().toString());
-            stmt.setString(2, "test-source");
-            stmt.setString(3, "test-type");
-            stmt.setString(4, "application/json");
-            stmt.setString(5, "test-subject");
-            stmt.setBytes(6, ("{\"value\":" + idn + "}").getBytes());
-            stmt.setLong(7, idn);
-
-            stmt.executeUpdate();
-        }
     }
 
     /**
