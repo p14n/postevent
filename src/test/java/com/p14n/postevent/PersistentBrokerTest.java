@@ -1,7 +1,8 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
-import com.p14n.postevent.catchup.PersistentSubscriber;
+import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -17,11 +18,11 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 
-class PersistentSubscriberTest {
+class PersistentBrokerTest {
     private EmbeddedPostgres pg;
     private Connection conn;
-    private PersistentSubscriber persistentSubscriber;
-    private MessageSubscriber<Event> mockSubscriber;
+    private PersistentBroker persistentBroker;
+    private MessageBroker<Event> mockSubscriber;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
@@ -34,8 +35,8 @@ class PersistentSubscriberTest {
                 .createMessagesTableIfNotExists();
 
         conn = pg.getPostgresDatabase().getConnection();
-        mockSubscriber = Mockito.mock(MessageSubscriber.class);
-        persistentSubscriber = new PersistentSubscriber(mockSubscriber, pg.getPostgresDatabase());
+        mockSubscriber = Mockito.mock(MessageBroker.class);
+        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase());
     }
 
     @AfterEach
@@ -54,7 +55,7 @@ class PersistentSubscriberTest {
                 "test-schema", "test-subject", "test-data".getBytes(), Instant.now(),1L);
 
         // Test the subscriber
-        persistentSubscriber.onMessage(testEvent);
+        persistentBroker.publish(testEvent);
 
         // Verify database persistence
         try (Statement stmt = conn.createStatement();
@@ -71,6 +72,6 @@ class PersistentSubscriberTest {
         }
 
         // Verify forwarding to subscriber
-        verify(mockSubscriber).onMessage(testEvent);
+        verify(mockSubscriber).publish(testEvent);
     }
 }

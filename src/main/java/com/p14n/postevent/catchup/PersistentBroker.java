@@ -1,5 +1,6 @@
 package com.p14n.postevent.catchup;
 
+import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.db.SQL;
@@ -7,21 +8,21 @@ import com.p14n.postevent.db.SQL;
 import javax.sql.DataSource;
 import java.sql.*;
 
-public class PersistentSubscriber implements MessageSubscriber<Event> {
+public class PersistentBroker implements MessageBroker<Event> {
     private static final String INSERT_SQL =
             "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
                     ") VALUES (" + SQL.EXT_PH + ")";
 
-    private final MessageSubscriber<Event> targetSubscriber;
+    private final MessageBroker<Event> targetBroker;
     private final DataSource dataSource;
 
-    public PersistentSubscriber(MessageSubscriber<Event> targetSubscriber, DataSource dataSource) {
-        this.targetSubscriber = targetSubscriber;
+    public PersistentBroker(MessageBroker<Event> targetBroker, DataSource dataSource) {
+        this.targetBroker = targetBroker;
         this.dataSource = dataSource;
     }
 
     @Override
-    public void onMessage(Event event) {
+    public void publish(Event event) {
         Connection conn = null;
         try {
             conn = dataSource.getConnection();
@@ -34,34 +35,28 @@ public class PersistentSubscriber implements MessageSubscriber<Event> {
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
-            targetSubscriber.onMessage(event);
+            targetBroker.publish(event);
 
         } catch (SQLException e) {
-            if (conn != null) {
-                try {
-                    if (!conn.isClosed()) {
-                        conn.rollback();
-                    }
-                } catch (SQLException rollbackEx) {
-                    e.addSuppressed(rollbackEx);
-                }
-            }
+            SQL.handleSQLException(e, conn);
             throw new RuntimeException("Failed to persist and forward event", e);
         } finally {
-            if (conn != null) {
-                try {
-                    if (!conn.isClosed()) {
-                        conn.close();
-                    }
-                } catch (SQLException closeEx) {
-                    // Optionally log the closing exception
-                }
-            }
+            SQL.closeConnection(conn);
         }
     }
 
     @Override
-    public void onError(Throwable error) {
-        targetSubscriber.onError(error);
+    public boolean subscribe(MessageSubscriber<Event> subscriber) {
+        return targetBroker.subscribe(subscriber);
+    }
+
+    @Override
+    public boolean unsubscribe(MessageSubscriber<Event> subscriber) {
+        return targetBroker.unsubscribe(subscriber);
+    }
+
+    @Override
+    public void close() {
+        targetBroker.close();
     }
 }

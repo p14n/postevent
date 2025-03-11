@@ -1,9 +1,11 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.CatchupService;
-import com.p14n.postevent.catchup.PersistentSubscriber;
+import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
@@ -35,7 +37,7 @@ public class CatchupServiceTest {
     private Publisher publisher;
     private CatchupServer catchupServer;
     private CatchupService catchupService;
-    private PersistentSubscriber persistentSubscriber;
+    private PersistentBroker persistentBroker;
 
     @BeforeEach
     public void setup() throws Exception {
@@ -54,17 +56,7 @@ public class CatchupServiceTest {
         publisher = new Publisher();
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
         catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, TEST_TOPIC);
-        persistentSubscriber = new PersistentSubscriber(new MessageSubscriber<Event>() {
-            @Override
-            public void onMessage(Event event) {
-                // Do nothing
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                // Do nothing
-            }
-        }, pg.getPostgresDatabase());
+        persistentBroker = new PersistentBroker(new DefaultMessageBroker<>(), pg.getPostgresDatabase());
     }
 
     @AfterEach

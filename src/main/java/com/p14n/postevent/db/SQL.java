@@ -2,10 +2,7 @@ package com.p14n.postevent.db;
 
 import com.p14n.postevent.data.Event;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 
 public class SQL {
 
@@ -39,5 +36,30 @@ public class SQL {
         stmt.setTimestamp(8, Timestamp.from(event.time()));
         stmt.setLong(9,event.idn());
     }
+
+    public static void closeConnection(Connection conn) {
+        if (conn != null) {
+            try {
+                if (!conn.isClosed()) {
+                    conn.close();
+                }
+            } catch (SQLException closeEx) {
+                // Optionally log the closing exception
+            }
+        }
+    }
+
+    public static void handleSQLException(SQLException e, Connection conn) {
+        if (conn != null) {
+            try {
+                if (!conn.isClosed()) {
+                    conn.rollback();
+                }
+            } catch (SQLException rollbackEx) {
+                e.addSuppressed(rollbackEx);
+            }
+        }
+    }
+
 }
 
