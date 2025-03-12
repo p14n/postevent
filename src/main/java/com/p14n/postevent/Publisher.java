@@ -1,6 +1,7 @@
 package com.p14n.postevent;
 
 import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.SQL;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,14 +32,11 @@ public class Publisher {
             throw new IllegalArgumentException("Topic name must contain only lowercase letters and underscores");
         }
 
-        String sql = String.format("""
-                INSERT INTO postevent.%s
-                (id, source, type, datacontenttype, dataschema, subject, data)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, topic);
+        String sql = String.format("INSERT INTO postevent.%s (%s) VALUES (%s)",
+                topic, SQL.CORE_COLS, SQL.CORE_PH);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            setEventOnStatement(stmt,event);
+            setEventOnStatement(stmt, event);
             stmt.executeUpdate();
         }
     }

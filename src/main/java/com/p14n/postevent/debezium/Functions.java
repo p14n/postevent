@@ -8,17 +8,20 @@ import java.io.IOException;
 
 public class Functions {
     private final static ObjectMapper mapper = new ObjectMapper();
+
     public static Event changeEventToEvent(ChangeEvent<String, String> record) throws IOException {
         var actualObj = mapper.readTree(record.value());
-        var r = actualObj.get("payload").get("after");
-
-        return Event.create(r.get("id").asText(),
-                r.get("source").asText(),
-                r.get("type").asText(),
-                r.get("datacontenttype").asText(),
-                r.get("dataschema").asText(),
-                r.get("subject").asText(),
-                r.get("data").binaryValue());
-
+        var payload = actualObj.get("payload");
+        var r = payload != null ? payload.get("after") : null;
+        if (r != null) {
+            return Event.create(r.get("id").asText(),
+                    r.get("source").asText(),
+                    r.get("type").asText(),
+                    r.get("datacontenttype").asText(),
+                    r.get("dataschema").asText(),
+                    r.get("subject").asText(),
+                    r.get("data").binaryValue());
+        }
+        return null;
     }
 }

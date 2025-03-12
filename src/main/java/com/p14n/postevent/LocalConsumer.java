@@ -23,7 +23,10 @@ public class LocalConsumer {
     public void start() throws IOException, InterruptedException {
         Consumer<ChangeEvent<String, String>> consumer = record -> {
             try {
-                broker.publish(changeEventToEvent(record));
+                Event event = changeEventToEvent(record);
+                if (event != null) {
+                    broker.publish(event);
+                }
             } catch (Exception e) {
                 throw new RuntimeException("Failed to process change event", e);
             }
