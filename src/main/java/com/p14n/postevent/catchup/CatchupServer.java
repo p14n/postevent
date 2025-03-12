@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class CatchupServer {
+public class CatchupServer implements CatchupServerInterface {
     private static final Logger LOGGER = Logger.getLogger(CatchupServer.class.getName());
     private final String topic;
     private final DataSource dataSource;
@@ -26,6 +26,7 @@ public class CatchupServer {
         this.dataSource = dataSource;
     }
 
+    @Override
     public List<Event> fetchEvents(long startAfter, long end, int maxResults) {
         if (startAfter > end) {
             throw new IllegalArgumentException("Start value must be less than or equal to end value");
@@ -63,6 +64,4 @@ public class CatchupServer {
             throw new RuntimeException("Failed to fetch events", e);
         }
     }
-
-
 }
