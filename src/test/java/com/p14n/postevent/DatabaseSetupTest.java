@@ -1,5 +1,6 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

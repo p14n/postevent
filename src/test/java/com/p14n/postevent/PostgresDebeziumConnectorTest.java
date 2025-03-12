@@ -1,5 +1,8 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.db.DatabaseSetup;
+import com.p14n.postevent.debezium.DebeziumServer;
 import io.debezium.engine.ChangeEvent;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 
@@ -24,7 +27,7 @@ import java.sql.Statement;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PostgresDebeziumConnectorTest {
-    private Debezium engine;
+    private DebeziumServer engine;
     private EmbeddedPostgres pg;
     private Connection conn;
 
@@ -40,7 +43,7 @@ class PostgresDebeziumConnectorTest {
         var databaseSetup = new DatabaseSetup(jdbcUrl, "postgres", "postgres");
         databaseSetup.createSchemaIfNotExists();
         databaseSetup.createTableIfNotExists("test");
-        engine = new Debezium();
+        engine = new DebeziumServer();
     }
 
     @AfterEach
@@ -86,7 +89,7 @@ class PostgresDebeziumConnectorTest {
                 "postgres", null);
         var latch = new CountDownLatch(1);
         var result = new AtomicReference<String>();
-        var debezium = new Debezium();
+        var debezium = new DebeziumServer();
         debezium.start(cfg,
                 record -> {
                     System.out.println(record);
