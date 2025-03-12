@@ -1,5 +1,8 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.catchup.CatchupServer;
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.DatabaseSetup;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,18 +54,10 @@ public class CatchupServerTest {
         try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
                 "postgres")) {
             for (int i = 0; i < 10; i++) {
-                Event event = new Event(
-                        UUID.randomUUID().toString(),
-                        "test-source",
-                        "test-type",
-                        "application/json",
-                        null,
-                        "test-subject",
-                        ("{\"value\":" + i + "}").getBytes(), null);
+                Event event = TestUtil.createTestEvent(i);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }
-
         // Fetch events
         List<Event> events = catchupServer.fetchEvents(1, 5, 10);
 
@@ -76,14 +71,7 @@ public class CatchupServerTest {
         try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
                 "postgres")) {
             for (int i = 0; i < 20; i++) {
-                Event event = new Event(
-                        UUID.randomUUID().toString(),
-                        "test-source",
-                        "test-type",
-                        "application/json",
-                        null,
-                        "test-subject",
-                        ("{\"value\":" + i + "}").getBytes(), null);
+                Event event = TestUtil.createTestEvent(i);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }
@@ -109,14 +97,7 @@ public class CatchupServerTest {
         try (Connection connection = DriverManager.getConnection(pg.getJdbcUrl("postgres", "postgres"), "postgres",
                 "postgres")) {
             for (int i = 0; i < 50; i++) {
-                Event event = new Event(
-                        UUID.randomUUID().toString(),
-                        "test-source",
-                        "test-type",
-                        "application/json",
-                        null,
-                        "test-subject",
-                        ("{\"value\":" + i + "}").getBytes(), null);
+                Event event = TestUtil.createTestEvent(i);
                 publisher.publish(event, connection, TEST_TOPIC);
             }
         }

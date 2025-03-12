@@ -1,8 +1,13 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.SQL;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
+import static com.p14n.postevent.db.SQL.setEventOnStatement;
 
 /**
  * Publisher class responsible for writing events to a PostgreSQL database.
@@ -27,22 +32,13 @@ public class Publisher {
             throw new IllegalArgumentException("Topic name must contain only lowercase letters and underscores");
         }
 
-        String sql = String.format("""
-                INSERT INTO postevent.%s
-                (id, source, type, datacontenttype, dataschema, subject, data)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, topic);
+        String sql = String.format("INSERT INTO postevent.%s (%s) VALUES (%s)",
+                topic, SQL.CORE_COLS, SQL.CORE_PH);
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, event.id());
-            stmt.setString(2, event.source());
-            stmt.setString(3, event.type());
-            stmt.setString(4, event.datacontenttype());
-            stmt.setString(5, event.dataschema());
-            stmt.setString(6, event.subject());
-            stmt.setBytes(7, event.data());
-
+            setEventOnStatement(stmt, event);
             stmt.executeUpdate();
         }
     }
+
 }

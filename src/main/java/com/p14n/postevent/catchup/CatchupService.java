@@ -1,26 +1,32 @@
-package com.p14n.postevent;
+package com.p14n.postevent.catchup;
+
+import com.p14n.postevent.data.Event;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import com.p14n.postevent.db.SQL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sql.DataSource;
 
 /**
  * Service to handle catching up on missed events for subscribers.
  */
 public class CatchupService {
-    private static final Logger LOGGER = Logger.getLogger(CatchupService.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
     private static final int DEFAULT_BATCH_SIZE = 20;
 
-    private final Connection connection;
     private final CatchupServer catchupServer;
     private final String topic;
+    private final DataSource datasource;
 
-    public CatchupService(Connection connection, CatchupServer catchupServer, String topic) {
-        this.connection = connection;
+    public CatchupService(DataSource ds, CatchupServer catchupServer, String topic) {
+        this.datasource = ds;
         this.catchupServer = catchupServer;
         this.topic = topic;
     }
@@ -35,42 +41,46 @@ public class CatchupService {
      * @throws SQLException If a database error occurs
      */
     public int catchup(String subscriberName, int batchSize) throws SQLException {
+
+        try (Connection conn = datasource.getConnection()){
+
+            long currentHwm = getCurrentHwm(conn,subscriberName);
+
+            // Find the next gap end (lowest idn greater than hwm)
+            long gapEnd = findGapEnd(conn,currentHwm);
+
+            LOGGER.info(String.format("Current HWM %d highest message in gap %d",
+                    currentHwm, gapEnd));
+
+            if (gapEnd <= currentHwm) {
+                LOGGER.info("No new events to process for subscriber: " + subscriberName);
+                return 0;
+            }
+
+            // Fetch events from catchup server
+            List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, DEFAULT_BATCH_SIZE);
+
+            if (events.isEmpty()) {
+                LOGGER.info("No events found in range for subscriber: " + subscriberName);
+                return 0;
+            }
+
+            // Write events to messages table
+            int processedCount = writeEventsToMessagesTable(conn,events);
+
+            // Update the high water mark
+            long newHwm = events.get(events.size() - 1).idn();
+            updateHwm(conn,subscriberName, currentHwm, newHwm);
+
+            LOGGER.info(String.format("Processed %d events for subscriber %s, updated HWM from %d to %d",
+                    processedCount, subscriberName, currentHwm, newHwm));
+
+            return processedCount;
+        }
         // Find current high water mark for the subscriber
-        long currentHwm = getCurrentHwm(subscriberName);
-
-        // Find the next gap end (lowest idn greater than hwm)
-        long gapEnd = findGapEnd(currentHwm);
-
-        LOGGER.info(String.format("Current HWM %d highest message in gap %d",
-                currentHwm, gapEnd));
-
-        if (gapEnd <= currentHwm) {
-            LOGGER.info("No new events to process for subscriber: " + subscriberName);
-            return 0;
-        }
-
-        // Fetch events from catchup server
-        List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, DEFAULT_BATCH_SIZE);
-
-        if (events.isEmpty()) {
-            LOGGER.info("No events found in range for subscriber: " + subscriberName);
-            return 0;
-        }
-
-        // Write events to messages table
-        int processedCount = writeEventsToMessagesTable(events);
-
-        // Update the high water mark
-        long newHwm = events.get(events.size() - 1).idn();
-        updateHwm(subscriberName, currentHwm, newHwm);
-
-        LOGGER.info(String.format("Processed %d events for subscriber %s, updated HWM from %d to %d",
-                processedCount, subscriberName, currentHwm, newHwm));
-
-        return processedCount;
     }
 
-    private long getCurrentHwm(String subscriberName) throws SQLException {
+    private long getCurrentHwm(Connection connection, String subscriberName) throws SQLException {
         String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE subscriber_name = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -81,14 +91,14 @@ public class CatchupService {
                     return rs.getLong("hwm");
                 } else {
                     // If no record exists, initialize with 0 and return 0
-                    initializeHwm(subscriberName);
+                    initializeHwm(connection,subscriberName);
                     return 0;
                 }
             }
         }
     }
 
-    private void initializeHwm(String subscriberName) throws SQLException {
+    private void initializeHwm(Connection connection, String subscriberName) throws SQLException {
         String sql = "INSERT INTO postevent.contiguous_hwm (subscriber_name, hwm) VALUES (?, 0)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -97,7 +107,7 @@ public class CatchupService {
         }
     }
 
-    private long findGapEnd(long currentHwm) throws SQLException {
+    private long findGapEnd(Connection connection, long currentHwm) throws SQLException {
         String sql = "SELECT MIN(idn) as next_idn FROM postevent.messages WHERE idn > ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -114,25 +124,17 @@ public class CatchupService {
         }
     }
 
-    private int writeEventsToMessagesTable(List<Event> events) throws SQLException {
+    private int writeEventsToMessagesTable(Connection connection, List<Event> events) throws SQLException {
         int count = 0;
-        String sql = """
-                INSERT INTO postevent.messages
-                (id, source, datacontenttype, dataschema, subject, data, idn)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT DO NOTHING
-                """;
+        String sql = "INSERT INTO postevent.messages ("+
+                SQL.EXT_COLS +
+                ") VALUES ("+SQL.EXT_PH +
+                ") ON CONFLICT DO NOTHING";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             for (Event event : events) {
-                stmt.setString(1, event.id());
-                stmt.setString(2, event.source());
-                stmt.setString(3, event.datacontenttype());
-                stmt.setString(4, event.dataschema());
-                stmt.setString(5, event.subject());
-                stmt.setBytes(6, event.data());
-                stmt.setLong(7, event.idn());
-
+                SQL.setEventOnStatement(stmt,event);
+                SQL.setTimeAndIDn(stmt,event);
                 count += stmt.executeUpdate();
             }
         }
@@ -140,7 +142,7 @@ public class CatchupService {
         return count;
     }
 
-    private void updateHwm(String subscriberName, long currentHwm, long newHwm) throws SQLException {
+    private void updateHwm(Connection connection, String subscriberName, long currentHwm, long newHwm) throws SQLException {
         String sql = "UPDATE postevent.contiguous_hwm SET hwm = ? WHERE subscriber_name = ? AND hwm = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -151,7 +153,7 @@ public class CatchupService {
             int updated = stmt.executeUpdate();
 
             if (updated == 0) {
-                LOGGER.warning("Failed to update HWM for subscriber " + subscriberName +
+                LOGGER.warn("Failed to update HWM for subscriber " + subscriberName +
                         ". Current HWM may have changed.");
                 throw new SQLException("Optimistic locking failure: HWM has been modified by another process");
             }
@@ -174,7 +176,7 @@ public class CatchupService {
         while (rs.next()) {
             long actualIdn = rs.getLong("idn");
             if (actualIdn > expectedNext) {
-                LOGGER.log(Level.INFO, "Gap found: Expected {0}, found {1} (gap of {2})",
+                LOGGER.info("Gap found: Expected {0}, found {1} (gap of {2})",
                         new Object[] { expectedNext, actualIdn, actualIdn - expectedNext });
                 return new GapCheckResult(true, lastContiguousIdn);
             }
@@ -194,22 +196,27 @@ public class CatchupService {
      * @throws SQLException If a database error occurs
      */
     public boolean hasSequenceGap(String subscriberName, long currentHwm) throws SQLException {
-        LOGGER.log(Level.FINE, "Checking for sequence gaps after HWM {0} for subscriber {1}",
+        LOGGER.debug("Checking for sequence gaps after HWM {0} for subscriber {1}",
                 new Object[] { currentHwm, subscriberName });
         String sql = "SELECT idn FROM postevent.messages WHERE idn > ? ORDER BY idn";
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = datasource.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql)) {
+            connection.setAutoCommit(false);
+
             stmt.setLong(1, currentHwm);
             try (ResultSet rs = stmt.executeQuery()) {
                 GapCheckResult result = processMessages(rs, currentHwm);
                 if (result.lastContiguousIdn > currentHwm) {
-                    LOGGER.log(Level.INFO, "Updating HWM from {0} to {1} for subscriber {2}",
-                            new Object[] { currentHwm, result.lastContiguousIdn, subscriberName });
-                    updateHwm(subscriberName, currentHwm, result.lastContiguousIdn);
+                    LOGGER.debug("Updating HWM from {0} to {1} for subscriber {2}",
+                            new Object[]{currentHwm, result.lastContiguousIdn, subscriberName});
+                    updateHwm(connection, subscriberName, currentHwm, result.lastContiguousIdn);
                 }
                 if (!result.gapFound) {
-                    LOGGER.log(Level.INFO, "No sequence gaps found after HWM for subscriber {0}", subscriberName);
+                    LOGGER.debug("No sequence gaps found after HWM for subscriber {0}",
+                            new Object[]{subscriberName});
                 }
+                connection.commit();
                 return result.gapFound;
             }
         }
