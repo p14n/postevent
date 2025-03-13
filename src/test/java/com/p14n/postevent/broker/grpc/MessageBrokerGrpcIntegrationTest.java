@@ -88,7 +88,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 eventsReceived.countDown(); // Ensure latch completes even on error
             }
         });
-        Thread.sleep(100);
+        Thread.sleep(200);
 
         // Publish events to the broker
         for (int i = 0; i < eventCount; i++) {
@@ -148,7 +148,7 @@ public class MessageBrokerGrpcIntegrationTest {
         };
 
         client.subscribe(subscriber);
-        Thread.sleep(100);
+        Thread.sleep(200);
 
         // Publish an event
         Event event1 = createSampleEvent(1);

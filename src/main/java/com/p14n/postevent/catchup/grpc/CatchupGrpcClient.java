@@ -61,6 +61,8 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
         OffsetDateTime time = null;
         if (!grpcEvent.getTime().isEmpty()) {
             time = OffsetDateTime.parse(grpcEvent.getTime());
+        } else {
+            time = OffsetDateTime.now();
         }
 
         return new Event(
@@ -70,7 +72,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
                 grpcEvent.getDataContentType(),
                 grpcEvent.getDataschema(),
                 grpcEvent.getSubject(),
-                grpcEvent.getData().toByteArray(),
+                grpcEvent.getData() == null ? new byte[] {} : grpcEvent.getData().toByteArray(),
                 time.toInstant(),
                 grpcEvent.getIdn());
     }
