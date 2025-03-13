@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.p14n.postevent.broker.grpc";
+option java_outer_classname = "MessageBrokerProto";
+
+package messagebroker;
+
+service MessageBrokerService {
+  // Stream events from the broker
+  rpc SubscribeToEvents(SubscriptionRequest) returns (stream EventResponse) {}
+}
+
+message SubscriptionRequest {
+  string topic = 1;
+  // Add any additional subscription parameters here
+}
+
+message EventResponse {
+  string id = 1;
+  string source = 2;
+  string type = 3;
+  string dataContentType = 4;
+  string dataSchema = 5;
+  string time = 6;
+  string subject = 7;
+  bytes data = 8;
+  int64 idn = 9;
+} 

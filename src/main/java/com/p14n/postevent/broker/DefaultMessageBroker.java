@@ -5,28 +5,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Default implementation of MessageBroker using thread-safe collections.
+ * 
  * @param <T> The type of messages this broker handles
  */
 public class DefaultMessageBroker<T> implements MessageBroker<T> {
-    
-    private final CopyOnWriteArraySet<MessageSubscriber<T>> subscribers = new CopyOnWriteArraySet<>();
+
+    protected final CopyOnWriteArraySet<MessageSubscriber<T>> subscribers = new CopyOnWriteArraySet<>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    
+
     @Override
     public void publish(T message) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
-        
+
         if (message == null) {
             throw new IllegalArgumentException("Message cannot be null");
         }
-        
+
         // If no subscribers, message is silently dropped
         if (subscribers.isEmpty()) {
             return;
         }
-        
+
         // Deliver to all subscribers
         for (MessageSubscriber<T> subscriber : subscribers) {
             try {
@@ -40,29 +41,29 @@ public class DefaultMessageBroker<T> implements MessageBroker<T> {
             }
         }
     }
-    
+
     @Override
     public boolean subscribe(MessageSubscriber<T> subscriber) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
-        
+
         if (subscriber == null) {
             throw new IllegalArgumentException("Subscriber cannot be null");
         }
-        
+
         return subscribers.add(subscriber);
     }
-    
+
     @Override
     public boolean unsubscribe(MessageSubscriber<T> subscriber) {
         if (subscriber == null) {
             throw new IllegalArgumentException("Subscriber cannot be null");
         }
-        
+
         return subscribers.remove(subscriber);
     }
-    
+
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
