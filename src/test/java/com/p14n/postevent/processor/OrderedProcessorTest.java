@@ -225,6 +225,26 @@ public class OrderedProcessorTest {
         verify(mockConnection).setAutoCommit(false);
     }
 
+    @Test
+    public void testProcessWithQueryException() throws SQLException {
+        // Setup mocks for query exception
+        when(mockPriorEventsStmt.executeQuery()).thenThrow(new SQLException("Test query exception"));
+
+        // Execute
+        boolean result = orderedProcessor.process(mockConnection, testEvent);
+
+        // Verify
+        assertFalse(result, "Process should return false when query throws exception");
+
+        // Verify transaction management
+        verify(mockConnection).setAutoCommit(false);
+        verify(mockConnection).rollback();
+        verify(mockConnection, never()).commit();
+
+        // Verify processor was not called
+        verify(mockProcessor, never()).apply(any(), any());
+    }
+
     private Event createTestEvent() {
         String id = UUID.randomUUID().toString();
         String source = "test-source";

@@ -38,7 +38,6 @@ public class OrderedProcessor {
      * @return true if the event was processed, false otherwise
      */
     public boolean process(Connection connection, Event event) {
-
         try {
             // Set auto-commit to false for our transaction
             connection.setAutoCommit(false);
@@ -55,33 +54,19 @@ public class OrderedProcessor {
                 return false;
             }
 
-            // Process the event
-            boolean success = false;
-            try {
-                success = processorFunction.apply(connection, event);
-            } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error processing event " + event.id(), e);
-                connection.rollback();
-                return false;
-            }
+            // Process the event and handle the result
+            boolean success = processEventWithFunction(connection, event);
 
-            // Commit or rollback based on the result
             if (success) {
                 connection.commit();
                 LOGGER.info("Successfully processed event " + event.id());
                 return true;
             } else {
-                connection.rollback();
-                LOGGER.info("Processing failed for event " + event.id());
-                return false;
+                return false; // Already rolled back in processEventWithFunction
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Database error while processing event " + event.id(), e);
-            try {
-                connection.rollback();
-            } catch (SQLException rollbackEx) {
-                LOGGER.log(Level.SEVERE, "Error rolling back transaction", rollbackEx);
-            }
+            performRollback(connection);
             return false;
         }
     }
@@ -131,6 +116,56 @@ public class OrderedProcessor {
 
             int updatedRows = stmt.executeUpdate();
             return updatedRows > 0;
+        }
+    }
+
+    /**
+     * Processes the event using the processor function and handles exceptions.
+     *
+     * @param connection Database connection
+     * @param event      Event to process
+     * @return true if processing was successful, false otherwise
+     * @throws SQLException if a database error occurs during rollback
+     */
+    private boolean processEventWithFunction(Connection connection, Event event) throws SQLException {
+        try {
+            boolean success = processorFunction.apply(connection, event);
+            if (!success) {
+                LOGGER.info("Processing failed for event " + event.id());
+                performRollback(connection);
+            }
+            return success;
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error processing event " + event.id(), e);
+            performRollback(connection);
+            return false;
+        }
+    }
+
+    /**
+     * Performs a rollback on the connection and logs any errors.
+     *
+     * @param connection Database connection
+     */
+    private void performRollback(Connection connection) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackEx) {
+            LOGGER.log(Level.SEVERE, "Error rolling back transaction", rollbackEx);
+        }
+    }
+
+    /**
+     * Restores the auto-commit state of the connection.
+     *
+     * @param connection Database connection
+     * @param autoCommit Original auto-commit state
+     */
+    private void restoreAutoCommit(Connection connection, boolean autoCommit) {
+        try {
+            connection.setAutoCommit(autoCommit);
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error restoring auto-commit state", e);
         }
     }
 }
