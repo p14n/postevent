@@ -83,7 +83,8 @@ public class DatabaseSetup {
                         dataschema VARCHAR(255),
                         subject VARCHAR(255),
                         data bytea,
-                        time TIMESTAMP WITH TIME ZONE
+                        time TIMESTAMP WITH TIME ZONE,
+                        status VARCHAR(1) DEFAULT 'u'
                     )""";
 
             stmt.execute(sql);
