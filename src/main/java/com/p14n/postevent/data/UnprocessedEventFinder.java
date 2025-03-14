@@ -34,19 +34,13 @@ public class UnprocessedEventFinder {
                 "WHERE status = 'u' " +
                 "ORDER BY time ASC";
 
-        List<Event> events = new ArrayList<>();
-
         try (PreparedStatement stmt = connection.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
 
-            while (rs.next()) {
-                Event event = mapResultSetToEvent(rs);
-                events.add(event);
-            }
+            List<Event> events = processResultSet(rs);
+            LOGGER.info("Found " + events.size() + " unprocessed events");
+            return events;
         }
-
-        LOGGER.info("Found " + events.size() + " unprocessed events");
-        return events;
     }
 
     /**
@@ -66,21 +60,15 @@ public class UnprocessedEventFinder {
                 "WHERE status = 'u' AND subject = ? " +
                 "ORDER BY time ASC";
 
-        List<Event> events = new ArrayList<>();
-
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, subject);
 
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Event event = mapResultSetToEvent(rs);
-                    events.add(event);
-                }
+                List<Event> events = processResultSet(rs);
+                LOGGER.info("Found " + events.size() + " unprocessed events for subject: " + subject);
+                return events;
             }
         }
-
-        LOGGER.info("Found " + events.size() + " unprocessed events for subject: " + subject);
-        return events;
     }
 
     /**
@@ -101,20 +89,32 @@ public class UnprocessedEventFinder {
                 "ORDER BY time ASC " +
                 "LIMIT ?";
 
-        List<Event> events = new ArrayList<>();
-
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setInt(1, limit);
 
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    Event event = mapResultSetToEvent(rs);
-                    events.add(event);
-                }
+                List<Event> events = processResultSet(rs);
+                LOGGER.info("Found " + events.size() + " unprocessed events");
+                return events;
             }
         }
+    }
 
-        LOGGER.info("Found " + events.size() + " unprocessed events");
+    /**
+     * Processes a result set and converts each row to an Event object.
+     * 
+     * @param rs Result set to process
+     * @return List of Event objects created from the result set
+     * @throws SQLException if a database error occurs
+     */
+    private List<Event> processResultSet(ResultSet rs) throws SQLException {
+        List<Event> events = new ArrayList<>();
+
+        while (rs.next()) {
+            Event event = mapResultSetToEvent(rs);
+            events.add(event);
+        }
+
         return events;
     }
 
