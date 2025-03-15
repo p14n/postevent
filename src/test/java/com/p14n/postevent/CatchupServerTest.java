@@ -22,7 +22,6 @@ public class CatchupServerTest {
     private static final String TEST_TOPIC = "test_topic";
 
     private EmbeddedPostgres pg;
-    private Publisher publisher;
     private CatchupServer catchupServer;
 
     @BeforeEach
@@ -36,8 +35,7 @@ public class CatchupServerTest {
         setup.createSchemaIfNotExists();
         setup.createTableIfNotExists(TEST_TOPIC);
 
-        // Create publisher and catchup server
-        publisher = new Publisher();
+        // Create catchup server
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
     }
 
@@ -55,7 +53,7 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 10; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
         // Fetch events
@@ -72,7 +70,7 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 20; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
 
@@ -98,7 +96,7 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 50; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
 

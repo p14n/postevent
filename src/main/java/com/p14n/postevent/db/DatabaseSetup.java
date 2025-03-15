@@ -1,5 +1,9 @@
 package com.p14n.postevent.db;
 
+import com.p14n.postevent.data.PostEventConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -13,10 +17,21 @@ public class DatabaseSetup {
     private final String username;
     private final String password;
 
+    public DatabaseSetup(PostEventConfig cfg){
+        this(cfg.jdbcUrl(),cfg.dbUser(),cfg.dbPassword());
+    }
+
     public DatabaseSetup(String jdbcUrl, String username, String password) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
+    }
+
+    public void setupAll(String topic){
+        createSchemaIfNotExists();
+        createMessagesTableIfNotExists();
+        createContiguousHwmTableIfNotExists();
+        createTableIfNotExists(topic);
     }
 
     public DatabaseSetup createSchemaIfNotExists() {
@@ -119,5 +134,13 @@ public class DatabaseSetup {
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(jdbcUrl, username, password);
+    }
+
+    public static DataSource createPool(PostEventConfig cfg){
+        HikariDataSource ds = new HikariDataSource();
+        ds.setJdbcUrl(cfg.jdbcUrl());
+        ds.setUsername(cfg.dbUser());
+        ds.setPassword(cfg.dbPassword());
+        return ds;
     }
 }

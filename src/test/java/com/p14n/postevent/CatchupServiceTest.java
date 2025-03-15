@@ -1,6 +1,7 @@
 package com.p14n.postevent;
 
 import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.catchup.CatchupServer;
@@ -34,7 +35,6 @@ public class CatchupServiceTest {
     private static final String SUBSCRIBER_NAME = "test_subscriber";
 
     private EmbeddedPostgres pg;
-    private Publisher publisher;
     private CatchupServer catchupServer;
     private CatchupService catchupService;
     private PersistentBroker persistentBroker;
@@ -53,10 +53,9 @@ public class CatchupServiceTest {
                 .createContiguousHwmTableIfNotExists();
 
         // Initialize components
-        publisher = new Publisher();
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
         catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, TEST_TOPIC);
-        persistentBroker = new PersistentBroker(new DefaultMessageBroker<>(), pg.getPostgresDatabase());
+        persistentBroker = new PersistentBroker(new EventMessageBroker(), pg.getPostgresDatabase());
     }
 
     @AfterEach
@@ -91,7 +90,7 @@ public class CatchupServiceTest {
             List<Event> publishedEvents = new ArrayList<>();
             for (int i = 1; i < 26; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
                 publishedEvents.add(event);
             }
 
@@ -137,7 +136,7 @@ public class CatchupServiceTest {
             log.debug("Publishing initial 10 events");
             for (int i = 1; i < 11; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             createProcessingGap(connection);
@@ -154,7 +153,7 @@ public class CatchupServiceTest {
             log.debug("Publishing 5 more events");
             for (int i = 11; i < 16; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             createProcessingGap(connection);
@@ -187,7 +186,7 @@ public class CatchupServiceTest {
             log.debug("Publishing 5 sequential events");
             for (int i = 0; i < 5; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             copyEventsToMessages(connection,0);
@@ -219,7 +218,7 @@ public class CatchupServiceTest {
             // First, insert events 1-3
             for (int i = 1; i <= 3; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             copyEventsToMessages(connection,0);
@@ -228,7 +227,7 @@ public class CatchupServiceTest {
             for (int i = 4; i <= 6; i++) {
                 log.debug("Publishing event {}", i);
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
             copyEventsToMessages(connection,5);
             logEventsInTopicTable(connection);

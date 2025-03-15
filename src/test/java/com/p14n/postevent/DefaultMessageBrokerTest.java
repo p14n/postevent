@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 2, unit = TimeUnit.SECONDS)
 class DefaultMessageBrokerTest {
 
-    private volatile DefaultMessageBroker<String> broker;
+    private volatile DefaultMessageBroker<String,String> broker;
 
     @AfterEach
     void tearDown() {
@@ -34,7 +34,12 @@ class DefaultMessageBrokerTest {
 
     @BeforeEach
     void setUp() {
-        broker = new DefaultMessageBroker<>();
+        broker = new DefaultMessageBroker<>() {
+            @Override
+            public String convert(String m) {
+                return m;
+            }
+        };
     }
 
     @Test

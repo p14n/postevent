@@ -5,6 +5,7 @@ import com.p14n.postevent.data.Event;
 import io.debezium.engine.ChangeEvent;
 
 import java.io.IOException;
+import java.time.Instant;
 
 public class Functions {
     private final static ObjectMapper mapper = new ObjectMapper();
@@ -20,7 +21,9 @@ public class Functions {
                     r.get("datacontenttype").asText(),
                     r.get("dataschema").asText(),
                     r.get("subject").asText(),
-                    r.get("data").binaryValue());
+                    r.get("data").binaryValue(),
+                    Instant.parse(r.get("time").asText()),
+                    r.get("idn").asLong());
         }
         return null;
     }

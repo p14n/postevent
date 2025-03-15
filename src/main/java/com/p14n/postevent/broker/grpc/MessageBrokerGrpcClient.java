@@ -1,6 +1,6 @@
 package com.p14n.postevent.broker.grpc;
 
-import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> implements AutoCloseable {
+public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcClient.class.getName());
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
@@ -119,5 +119,5 @@ public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> impleme
         }
         return unsubscribed;
     }
-
 }
+
