@@ -91,6 +91,7 @@ public class DatabaseSetup {
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.messages (
                         idn bigint PRIMARY KEY NOT NULL,
+                        topic VARCHAR(255) NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
                         type VARCHAR(255) NOT NULL,
@@ -99,7 +100,8 @@ public class DatabaseSetup {
                         subject VARCHAR(255),
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE,
-                        status VARCHAR(1) DEFAULT 'u'
+                        status VARCHAR(1) DEFAULT 'u',
+                        UNIQUE (idn, topic)
                     )""";
 
             stmt.execute(sql);
@@ -118,7 +120,7 @@ public class DatabaseSetup {
 
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.contiguous_hwm (
-                        subscriber_name VARCHAR(255) PRIMARY KEY,
+                        topic_name VARCHAR(255) PRIMARY KEY,
                         hwm BIGINT NOT NULL
                     )""";
 

@@ -14,7 +14,8 @@ public record Event(
         String subject,
         byte[] data,
         Instant time,
-        Long idn) {
+        Long idn,
+        String topic) {
 
     /**
      * Creates a new Event instance with validation of required fields.
@@ -29,7 +30,7 @@ public record Event(
             String dataschema,
             String subject,
             byte[] data) {
-        return create(id, source, type, datacontenttype, dataschema, subject, data,null, null);
+        return create(id, source, type, datacontenttype, dataschema, subject, data,null, null, null);
     }
 
     public static Event create(
@@ -41,7 +42,9 @@ public record Event(
             String subject,
             byte[] data,
             Instant time,
-            Long idn) {
+            Long idn,
+            String topic
+    ) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("id cannot be null or empty");
         }
@@ -52,6 +55,6 @@ public record Event(
             throw new IllegalArgumentException("type cannot be null or empty");
         }
 
-        return new Event(id, source, type, datacontenttype, dataschema, subject, data, time, idn);
+        return new Event(id, source, type, datacontenttype, dataschema, subject, data, time, idn, topic);
     }
 }

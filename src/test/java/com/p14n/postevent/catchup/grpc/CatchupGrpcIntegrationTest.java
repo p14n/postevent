@@ -137,7 +137,7 @@ public class CatchupGrpcIntegrationTest {
         byte[] data = "{\"key\":\"value\"}".getBytes();
         Instant time = Instant.now();
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -146,6 +146,7 @@ public class CatchupGrpcIntegrationTest {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                "topic");
     }
 }

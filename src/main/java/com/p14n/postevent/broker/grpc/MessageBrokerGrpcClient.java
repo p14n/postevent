@@ -76,8 +76,7 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
         if (!grpcEvent.getTime().isEmpty()) {
             time = OffsetDateTime.parse(grpcEvent.getTime());
         }
-
-        return new Event(
+        return Event.create(
                 grpcEvent.getId(),
                 grpcEvent.getSource(),
                 grpcEvent.getType(),
@@ -86,7 +85,8 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
                 grpcEvent.getSubject(),
                 grpcEvent.getData().toByteArray(),
                 time.toInstant(),
-                grpcEvent.getIdn());
+                grpcEvent.getIdn(),
+                grpcEvent.getTopic());
     }
 
     @Override

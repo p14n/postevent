@@ -65,16 +65,17 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
             time = OffsetDateTime.now();
         }
 
-        return new Event(
+        return Event.create(
                 grpcEvent.getId(),
                 grpcEvent.getSource(),
                 grpcEvent.getType(),
                 grpcEvent.getDataContentType(),
                 grpcEvent.getDataschema(),
                 grpcEvent.getSubject(),
-                grpcEvent.getData() == null ? new byte[] {} : grpcEvent.getData().toByteArray(),
+                grpcEvent.getData().toByteArray(),
                 time.toInstant(),
-                grpcEvent.getIdn());
+                grpcEvent.getIdn(),
+                topic);
     }
 
     @Override

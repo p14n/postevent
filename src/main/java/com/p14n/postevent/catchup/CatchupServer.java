@@ -49,7 +49,7 @@ public class CatchupServer implements CatchupServerInterface {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Event event = SQL.eventFromResultSet(rs);
+                    Event event = SQL.eventFromResultSet(rs, topic);
                     events.add(event);
                 }
             }

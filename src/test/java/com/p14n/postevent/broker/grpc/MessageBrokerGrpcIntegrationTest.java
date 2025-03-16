@@ -187,7 +187,7 @@ public class MessageBrokerGrpcIntegrationTest {
         byte[] data = "{\"key\":\"value\"}".getBytes();
         Instant time = Instant.now();
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -196,7 +196,8 @@ public class MessageBrokerGrpcIntegrationTest {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                "topic");
     }
 
     /**

@@ -55,7 +55,7 @@ class PersistentBrokerTest {
         // Create test event
         Event testEvent = Event.create(
                 "test-123", "test-source", "test-type", "text/plain",
-                "test-schema", "test-subject", "test-data".getBytes(), Instant.now(), 1L);
+                "test-schema", "test-subject", "test-data".getBytes(), Instant.now(), 1L,"topic");
 
         // Test the subscriber
         persistentBroker.publish(testEvent);
