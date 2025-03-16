@@ -8,6 +8,13 @@ public class SystemEventBroker extends DefaultMessageBroker<SystemEventBroker.Sy
     }
 
     public enum SystemEvent {
-        CatchupRequired
+
+        CatchupRequired;
+
+        public String subscriber;
+        public SystemEvent withSubscriber(String subscriber){
+            this.subscriber = subscriber;
+            return this;
+        }
     }
 }

@@ -46,7 +46,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
                 stmt.setLong(3,event.idn() - 1);
                 int updates = stmt.executeUpdate();
                 if(updates<1)
-                    systemEventBroker.publish(SystemEventBroker.SystemEvent.CatchupRequired);
+                    systemEventBroker.publish(SystemEventBroker.SystemEvent.CatchupRequired.withSubscriber(this.subscriberName));
             }
 
             conn.commit();

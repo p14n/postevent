@@ -51,8 +51,8 @@ public class CatchupServiceTest {
 
         // Initialize components
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
-        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, TEST_TOPIC);
-        persistentBroker = new PersistentBroker(new EventMessageBroker(), pg.getPostgresDatabase(),"test", new SystemEventBroker());
+        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer);
+        persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(),"test", new SystemEventBroker());
     }
 
     @AfterEach
@@ -94,7 +94,7 @@ public class CatchupServiceTest {
             createProcessingGap(connection);
 
             // First catchup should process events
-            int processedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int processedCount = catchupService.catchup(SUBSCRIBER_NAME);
             assertTrue(processedCount > 0, "Should have processed some events");
 
             // Verify HWM was updated
@@ -107,7 +107,7 @@ public class CatchupServiceTest {
                     "Number of messages in table should match processed count");
 
             // Second catchup should process remaining events
-            int secondProcessedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int secondProcessedCount = catchupService.catchup(SUBSCRIBER_NAME);
             assertTrue(secondProcessedCount > 0,
                     "Should have processed remaining events");
 
@@ -117,7 +117,7 @@ public class CatchupServiceTest {
                     "All events should have been processed");
 
             // Third catchup should process no events
-            int thirdProcessedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int thirdProcessedCount = catchupService.catchup(SUBSCRIBER_NAME);
             assertEquals(0, thirdProcessedCount, "No more events should be processed");
 
         }
@@ -141,7 +141,7 @@ public class CatchupServiceTest {
             logEventsInMessagesTable(connection);
             // Process initial events
             log.debug("Processing initial events");
-            int initialProcessed = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int initialProcessed = catchupService.catchup(SUBSCRIBER_NAME);
             long initialHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
             log.debug("Initial processing complete: processed {} events, HWM = {}",
                     initialProcessed, initialHwm);
@@ -156,7 +156,7 @@ public class CatchupServiceTest {
             createProcessingGap(connection);
             // Process new events
             log.debug("Processing new events");
-            int processedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int processedCount = catchupService.catchup(SUBSCRIBER_NAME);
             long newHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
             log.debug("New processing complete: processed {} events, HWM = {}",
                     processedCount, newHwm);

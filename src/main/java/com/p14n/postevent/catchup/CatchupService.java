@@ -1,5 +1,7 @@
 package com.p14n.postevent.catchup;
 
+import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.data.Event;
 
 import java.sql.Connection;
@@ -13,22 +15,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import com.p14n.postevent.broker.SystemEventBroker.SystemEvent;
 
 /**
  * Service to handle catching up on missed events for subscribers.
  */
-public class CatchupService {
+public class CatchupService implements MessageSubscriber<SystemEventBroker.SystemEvent> {
     private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
     private static final int DEFAULT_BATCH_SIZE = 20;
 
     private final CatchupServer catchupServer;
-    private final String topic;
     private final DataSource datasource;
-
-    public CatchupService(DataSource ds, CatchupServer catchupServer, String topic) {
+    private int batchSize = DEFAULT_BATCH_SIZE;
+    public CatchupService(DataSource ds, CatchupServer catchupServer) {
         this.datasource = ds;
         this.catchupServer = catchupServer;
-        this.topic = topic;
     }
 
     /**
@@ -36,18 +37,17 @@ public class CatchupService {
      * mark.
      * 
      * @param subscriberName The name of the subscriber
-     * @param batchSize      The maximum number of events to process in one batch
      * @return The number of events processed
      * @throws SQLException If a database error occurs
      */
-    public int catchup(String subscriberName, int batchSize) throws SQLException {
+    public int catchup(String subscriberName) {
 
-        try (Connection conn = datasource.getConnection()){
+        try (Connection conn = datasource.getConnection()) {
 
-            long currentHwm = getCurrentHwm(conn,subscriberName);
+            long currentHwm = getCurrentHwm(conn, subscriberName);
 
             // Find the next gap end (lowest idn greater than hwm)
-            long gapEnd = findGapEnd(conn,currentHwm);
+            long gapEnd = findGapEnd(conn, currentHwm);
 
             LOGGER.info(String.format("Current HWM %d highest message in gap %d",
                     currentHwm, gapEnd));
@@ -58,7 +58,7 @@ public class CatchupService {
             }
 
             // Fetch events from catchup server
-            List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, DEFAULT_BATCH_SIZE);
+            List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, batchSize);
 
             if (events.isEmpty()) {
                 LOGGER.info("No events found in range for subscriber: " + subscriberName);
@@ -66,18 +66,20 @@ public class CatchupService {
             }
 
             // Write events to messages table
-            int processedCount = writeEventsToMessagesTable(conn,events);
+            int processedCount = writeEventsToMessagesTable(conn, events);
 
             // Update the high water mark
             long newHwm = events.get(events.size() - 1).idn();
-            updateHwm(conn,subscriberName, currentHwm, newHwm);
+            updateHwm(conn, subscriberName, currentHwm, newHwm);
 
             LOGGER.info(String.format("Processed %d events for subscriber %s, updated HWM from %d to %d",
                     processedCount, subscriberName, currentHwm, newHwm));
 
             return processedCount;
+        } catch (SQLException e) {
+            LOGGER.error("Failed to catch up",e);
+            return 0;
         }
-        // Find current high water mark for the subscriber
     }
 
     private long getCurrentHwm(Connection connection, String subscriberName) throws SQLException {
@@ -91,7 +93,7 @@ public class CatchupService {
                     return rs.getLong("hwm");
                 } else {
                     // If no record exists, initialize with 0 and return 0
-                    initializeHwm(connection,subscriberName);
+                    initializeHwm(connection, subscriberName);
                     return 0;
                 }
             }
@@ -126,15 +128,15 @@ public class CatchupService {
 
     private int writeEventsToMessagesTable(Connection connection, List<Event> events) throws SQLException {
         int count = 0;
-        String sql = "INSERT INTO postevent.messages ("+
+        String sql = "INSERT INTO postevent.messages (" +
                 SQL.EXT_COLS +
-                ") VALUES ("+SQL.EXT_PH +
+                ") VALUES (" + SQL.EXT_PH +
                 ") ON CONFLICT DO NOTHING";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             for (Event event : events) {
-                SQL.setEventOnStatement(stmt,event);
-                SQL.setTimeAndIDn(stmt,event);
+                SQL.setEventOnStatement(stmt, event);
+                SQL.setTimeAndIDn(stmt, event);
                 count += stmt.executeUpdate();
             }
         }
@@ -142,7 +144,8 @@ public class CatchupService {
         return count;
     }
 
-    private void updateHwm(Connection connection, String subscriberName, long currentHwm, long newHwm) throws SQLException {
+    private void updateHwm(Connection connection, String subscriberName, long currentHwm, long newHwm)
+            throws SQLException {
         String sql = "UPDATE postevent.contiguous_hwm SET hwm = ? WHERE subscriber_name = ? AND hwm = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -157,6 +160,15 @@ public class CatchupService {
                         ". Current HWM may have changed.");
                 throw new SQLException("Optimistic locking failure: HWM has been modified by another process");
             }
+        }
+    }
+
+    @Override
+    public void onMessage(SystemEventBroker.SystemEvent message) {
+        switch (message) {
+            case CatchupRequired:
+                catchup(message.subscriber);
+                break;
         }
     }
 
@@ -201,7 +213,7 @@ public class CatchupService {
         String sql = "SELECT idn FROM postevent.messages WHERE idn > ? ORDER BY idn";
 
         try (Connection connection = datasource.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
             connection.setAutoCommit(false);
 
             stmt.setLong(1, currentHwm);
@@ -209,12 +221,12 @@ public class CatchupService {
                 GapCheckResult result = processMessages(rs, currentHwm);
                 if (result.lastContiguousIdn > currentHwm) {
                     LOGGER.debug("Updating HWM from {0} to {1} for subscriber {2}",
-                            new Object[]{currentHwm, result.lastContiguousIdn, subscriberName});
+                            new Object[] { currentHwm, result.lastContiguousIdn, subscriberName });
                     updateHwm(connection, subscriberName, currentHwm, result.lastContiguousIdn);
                 }
                 if (!result.gapFound) {
                     LOGGER.debug("No sequence gaps found after HWM for subscriber {0}",
-                            new Object[]{subscriberName});
+                            new Object[] { subscriberName });
                 }
                 connection.commit();
                 return result.gapFound;
