@@ -2,6 +2,7 @@ package com.p14n.postevent;
 
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
@@ -32,11 +33,13 @@ class PersistentBrokerTest {
         // Create schema and messages table
         new DatabaseSetup(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres")
                 .createSchemaIfNotExists()
-                .createMessagesTableIfNotExists();
+                .createMessagesTableIfNotExists()
+                .createContiguousHwmTableIfNotExists();
 
         conn = pg.getPostgresDatabase().getConnection();
         mockSubscriber = Mockito.mock(MessageBroker.class);
-        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase());
+        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase(), "test",
+                new SystemEventBroker());
     }
 
     @AfterEach

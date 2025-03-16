@@ -21,9 +21,9 @@ public class LocalConsumerExample {
     public static void main(String[] args) throws IOException, InterruptedException, SQLException {
         CountDownLatch l = new CountDownLatch(1);
 
-        try (DefaultMessageBroker<Event, Event> mb = new EventMessageBroker();
+        try (var mb = new EventMessageBroker();
              EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
-             LocalConsumer lc = new LocalConsumer(new ConfigData(
+             var lc = new LocalConsumer<>(new ConfigData(
                         "local",
                         "topic",
                         "127.0.0.1",

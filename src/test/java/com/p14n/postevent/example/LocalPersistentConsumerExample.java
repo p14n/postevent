@@ -21,8 +21,9 @@ public class LocalPersistentConsumerExample {
         CountDownLatch l = new CountDownLatch(1);
 
         try (var pg = ExampleUtil.embeddedPostgres();
+             var seb = new SystemEventBroker();
              var tb = new TransactionalBroker(pg.getPostgresDatabase());
-             var pb = new PersistentBroker<>(tb,pg.getPostgresDatabase());
+             var pb = new PersistentBroker<>(tb,pg.getPostgresDatabase(),"test",seb);
              var lc = new LocalConsumer<>(new ConfigData(
                      "local",
                      "topic",

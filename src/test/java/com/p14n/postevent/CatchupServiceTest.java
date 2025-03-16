@@ -1,9 +1,6 @@
 package com.p14n.postevent;
 
-import com.p14n.postevent.broker.DefaultMessageBroker;
-import com.p14n.postevent.broker.EventMessageBroker;
-import com.p14n.postevent.broker.MessageBroker;
-import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.*;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
@@ -55,7 +52,7 @@ public class CatchupServiceTest {
         // Initialize components
         catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
         catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, TEST_TOPIC);
-        persistentBroker = new PersistentBroker(new EventMessageBroker(), pg.getPostgresDatabase());
+        persistentBroker = new PersistentBroker(new EventMessageBroker(), pg.getPostgresDatabase(),"test", new SystemEventBroker());
     }
 
     @AfterEach

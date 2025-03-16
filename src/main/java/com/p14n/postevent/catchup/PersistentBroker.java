@@ -1,6 +1,7 @@
 package com.p14n.postevent.catchup;
 
 import com.p14n.postevent.broker.MessageBroker;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.db.SQL;
@@ -11,13 +12,21 @@ import java.sql.*;
 public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoCloseable {
     private static final String INSERT_SQL = "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
             ") VALUES (" + SQL.EXT_PH + ")";
+    private static final String UPDATE_HWM_SQL = "UPDATE postevent.contiguous_hwm set hwm=? where subscriber_name=? and hwm=?";
 
     private final MessageBroker<Event, OutT> targetBroker;
     private final DataSource dataSource;
+    private final String subscriberName;
+    private final SystemEventBroker systemEventBroker;
 
-    public PersistentBroker(MessageBroker<Event, OutT> targetBroker, DataSource dataSource) {
+    public PersistentBroker(MessageBroker<Event, OutT> targetBroker,
+                            DataSource dataSource,
+                            String subscriberName,
+                            SystemEventBroker systemEventBroker) {
         this.targetBroker = targetBroker;
         this.dataSource = dataSource;
+        this.subscriberName = subscriberName;
+        this.systemEventBroker = systemEventBroker;
     }
 
     @Override
@@ -31,6 +40,15 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
                 SQL.setTimeAndIDn(stmt, event);
                 stmt.executeUpdate();
             }
+            try (PreparedStatement stmt = conn.prepareStatement(UPDATE_HWM_SQL)) {
+                stmt.setLong(1,event.idn());
+                stmt.setString(2,subscriberName);
+                stmt.setLong(3,event.idn() - 1);
+                int updates = stmt.executeUpdate();
+                if(updates<1)
+                    systemEventBroker.publish(SystemEventBroker.SystemEvent.CatchupRequired);
+            }
+
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
