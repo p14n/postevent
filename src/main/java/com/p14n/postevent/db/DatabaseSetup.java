@@ -1,5 +1,9 @@
 package com.p14n.postevent.db;
 
+import com.p14n.postevent.data.PostEventConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -13,10 +17,21 @@ public class DatabaseSetup {
     private final String username;
     private final String password;
 
+    public DatabaseSetup(PostEventConfig cfg){
+        this(cfg.jdbcUrl(),cfg.dbUser(),cfg.dbPassword());
+    }
+
     public DatabaseSetup(String jdbcUrl, String username, String password) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
+    }
+
+    public void setupAll(String topic){
+        createSchemaIfNotExists();
+        createMessagesTableIfNotExists();
+        createContiguousHwmTableIfNotExists();
+        createTableIfNotExists(topic);
     }
 
     public DatabaseSetup createSchemaIfNotExists() {
@@ -76,6 +91,7 @@ public class DatabaseSetup {
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.messages (
                         idn bigint PRIMARY KEY NOT NULL,
+                        topic VARCHAR(255) NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
                         type VARCHAR(255) NOT NULL,
@@ -84,7 +100,8 @@ public class DatabaseSetup {
                         subject VARCHAR(255),
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE,
-                        status VARCHAR(1) DEFAULT 'u'
+                        status VARCHAR(1) DEFAULT 'u',
+                        UNIQUE (idn, topic)
                     )""";
 
             stmt.execute(sql);
@@ -103,7 +120,7 @@ public class DatabaseSetup {
 
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.contiguous_hwm (
-                        subscriber_name VARCHAR(255) PRIMARY KEY,
+                        topic_name VARCHAR(255) PRIMARY KEY,
                         hwm BIGINT NOT NULL
                     )""";
 
@@ -119,5 +136,13 @@ public class DatabaseSetup {
 
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(jdbcUrl, username, password);
+    }
+
+    public static DataSource createPool(PostEventConfig cfg){
+        HikariDataSource ds = new HikariDataSource();
+        ds.setJdbcUrl(cfg.jdbcUrl());
+        ds.setUsername(cfg.dbUser());
+        ds.setPassword(cfg.dbPassword());
+        return ds;
     }
 }

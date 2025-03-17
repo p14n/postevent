@@ -52,10 +52,10 @@ public class CatchupGrpcServer {
         }
     }
 
-    private static class CatchupServiceImpl extends CatchupServiceGrpc.CatchupServiceImplBase {
+    public static class CatchupServiceImpl extends CatchupServiceGrpc.CatchupServiceImplBase {
         private final CatchupServerInterface catchupServer;
 
-        CatchupServiceImpl(CatchupServerInterface catchupServer) {
+        public CatchupServiceImpl(CatchupServerInterface catchupServer) {
             this.catchupServer = catchupServer;
         }
 
@@ -65,7 +65,8 @@ public class CatchupGrpcServer {
                 List<Event> events = catchupServer.fetchEvents(
                         request.getStartAfter(),
                         request.getEnd(),
-                        request.getMaxResults());
+                        request.getMaxResults(),
+                        request.getTopic());
 
                 List<com.p14n.postevent.catchup.grpc.Event> grpcEvents = events.stream()
                         .map(this::convertToGrpcEvent)

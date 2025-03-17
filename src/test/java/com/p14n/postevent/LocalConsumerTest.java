@@ -1,6 +1,7 @@
 package com.p14n.postevent;
 
 import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
@@ -21,8 +22,7 @@ class LocalConsumerTest {
     private EmbeddedPostgres pg;
     private Connection conn;
     private LocalConsumer localConsumer;
-    private DefaultMessageBroker<Event> broker;
-    private Publisher publisher;
+    private DefaultMessageBroker<Event, Event> broker;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -36,7 +36,7 @@ class LocalConsumerTest {
         setup.createSchemaIfNotExists();
         setup.createTableIfNotExists("test");
 
-        broker = new DefaultMessageBroker<>();
+        broker = new EventMessageBroker();
         PostEventConfig config = new ConfigData(
                 "test",
                 "test",
@@ -47,7 +47,6 @@ class LocalConsumerTest {
                 "postgres",
                 null);
 
-        publisher = new Publisher();
         localConsumer = new LocalConsumer(config, broker);
     }
 
@@ -91,7 +90,7 @@ class LocalConsumerTest {
                 "text/plain", "test-schema", "test-subject",
                 "test-data".getBytes());
 
-        publisher.publish(testEvent, conn, "test");
+        Publisher.publish(testEvent, conn, "test");
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive event within timeout");
 

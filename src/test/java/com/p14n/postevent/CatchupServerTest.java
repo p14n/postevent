@@ -22,7 +22,6 @@ public class CatchupServerTest {
     private static final String TEST_TOPIC = "test_topic";
 
     private EmbeddedPostgres pg;
-    private Publisher publisher;
     private CatchupServer catchupServer;
 
     @BeforeEach
@@ -36,9 +35,8 @@ public class CatchupServerTest {
         setup.createSchemaIfNotExists();
         setup.createTableIfNotExists(TEST_TOPIC);
 
-        // Create publisher and catchup server
-        publisher = new Publisher();
-        catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
+        // Create catchup server
+        catchupServer = new CatchupServer(pg.getPostgresDatabase());
     }
 
     @AfterEach
@@ -55,11 +53,11 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 10; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
         // Fetch events
-        List<Event> events = catchupServer.fetchEvents(1, 5, 10);
+        List<Event> events = catchupServer.fetchEvents(1, 5, 10,TEST_TOPIC);
 
         // Verify results
         assertEquals(4, events.size());
@@ -72,22 +70,22 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 20; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
 
         // Test with different maxResults values
-        List<Event> events1 = catchupServer.fetchEvents(1, 20, 5);
+        List<Event> events1 = catchupServer.fetchEvents(1, 20, 5,TEST_TOPIC);
         assertEquals(5, events1.size());
 
-        List<Event> events2 = catchupServer.fetchEvents(1, 20, 10);
+        List<Event> events2 = catchupServer.fetchEvents(1, 20, 10,TEST_TOPIC);
         assertEquals(10, events2.size());
 
-        List<Event> events3 = catchupServer.fetchEvents(1, 20, 15);
+        List<Event> events3 = catchupServer.fetchEvents(1, 20, 15,TEST_TOPIC);
         assertEquals(15, events3.size());
 
         // When maxResults is greater than available events
-        List<Event> events4 = catchupServer.fetchEvents(10, 20, 20);
+        List<Event> events4 = catchupServer.fetchEvents(10, 20, 20,TEST_TOPIC);
         assertEquals(10, events4.size());
     }
 
@@ -98,12 +96,12 @@ public class CatchupServerTest {
                 "postgres")) {
             for (int i = 0; i < 50; i++) {
                 Event event = TestUtil.createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
         }
 
         // Request a large range but limit with maxResults
-        List<Event> events = catchupServer.fetchEvents(0, 50, 25);
+        List<Event> events = catchupServer.fetchEvents(0, 50, 25,TEST_TOPIC);
 
         // Verify maxResults is respected
         assertEquals(25, events.size());
@@ -121,9 +119,9 @@ public class CatchupServerTest {
     @Test
     public void testInvalidParameters() {
         // Test invalid start/end
-        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(10, 5, 10));
+        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(10, 5, 10,TEST_TOPIC));
 
         // Test invalid maxResults
-        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(1, 10, 0));
+        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(1, 10, 0,TEST_TOPIC));
     }
 }

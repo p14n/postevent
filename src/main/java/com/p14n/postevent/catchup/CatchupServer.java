@@ -15,24 +15,22 @@ import java.util.logging.Logger;
 
 public class CatchupServer implements CatchupServerInterface {
     private static final Logger LOGGER = Logger.getLogger(CatchupServer.class.getName());
-    private final String topic;
     private final DataSource dataSource;
 
-    public CatchupServer(String topic, DataSource dataSource) {
-        if (topic == null || topic.trim().isEmpty()) {
-            throw new IllegalArgumentException("Topic name cannot be null or empty");
-        }
-        this.topic = topic;
+    public CatchupServer(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
     @Override
-    public List<Event> fetchEvents(long startAfter, long end, int maxResults) {
+    public List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic) {
         if (startAfter > end) {
             throw new IllegalArgumentException("Start value must be less than or equal to end value");
         }
         if (maxResults <= 0) {
             throw new IllegalArgumentException("Max results must be greater than zero");
+        }
+        if (topic == null || topic.trim().isEmpty()) {
+            throw new IllegalArgumentException("Topic name cannot be null or empty");
         }
 
         List<Event> events = new ArrayList<>();
@@ -49,7 +47,7 @@ public class CatchupServer implements CatchupServerInterface {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    Event event = SQL.eventFromResultSet(rs);
+                    Event event = SQL.eventFromResultSet(rs, topic);
                     events.add(event);
                 }
             }

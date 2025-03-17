@@ -38,7 +38,7 @@ public class CatchupGrpcIntegrationTest {
         server.start();
 
         // Create the client
-        client = new CatchupGrpcClient(HOST, PORT, TOPIC);
+        client = new CatchupGrpcClient(HOST, PORT);
     }
 
     @AfterEach
@@ -64,14 +64,14 @@ public class CatchupGrpcIntegrationTest {
         List<Event> mockEvents = Arrays.asList(event1, event2);
 
         // Configure mock to return our sample events
-        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults))
+        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults, TOPIC))
                 .thenReturn(mockEvents);
 
         // Call the client
-        List<Event> fetchedEvents = client.fetchEvents(startAfter, end, maxResults);
+        List<Event> fetchedEvents = client.fetchEvents(startAfter, end, maxResults, TOPIC);
 
         // Verify the mock was called with correct parameters
-        verify(mockCatchupServer).fetchEvents(startAfter, end, maxResults);
+        verify(mockCatchupServer).fetchEvents(startAfter, end, maxResults, TOPIC);
 
         // Verify results
         assertEquals(2, fetchedEvents.size());
@@ -98,12 +98,12 @@ public class CatchupGrpcIntegrationTest {
         int maxResults = 10;
 
         // Configure mock to throw exception
-        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults))
+        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults, TOPIC))
                 .thenThrow(new RuntimeException("Test exception"));
 
         // Call the client and verify exception is propagated
         Exception exception = assertThrows(RuntimeException.class, () -> {
-            client.fetchEvents(startAfter, end, maxResults);
+            client.fetchEvents(startAfter, end, maxResults, TOPIC);
         });
 
         assertTrue(exception.getMessage().contains("Failed to fetch events via gRPC"));
@@ -117,11 +117,11 @@ public class CatchupGrpcIntegrationTest {
         int maxResults = 10;
 
         // Configure mock to return empty list
-        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults))
+        when(mockCatchupServer.fetchEvents(startAfter, end, maxResults, TOPIC))
                 .thenReturn(List.of());
 
         // Call the client
-        List<Event> fetchedEvents = client.fetchEvents(startAfter, end, maxResults);
+        List<Event> fetchedEvents = client.fetchEvents(startAfter, end, maxResults, TOPIC);
 
         // Verify results
         assertTrue(fetchedEvents.isEmpty());
@@ -137,7 +137,7 @@ public class CatchupGrpcIntegrationTest {
         byte[] data = "{\"key\":\"value\"}".getBytes();
         Instant time = Instant.now();
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -146,6 +146,7 @@ public class CatchupGrpcIntegrationTest {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                "topic");
     }
 }

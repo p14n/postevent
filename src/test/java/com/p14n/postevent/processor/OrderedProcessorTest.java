@@ -256,7 +256,7 @@ public class OrderedProcessorTest {
         Instant time = Instant.now();
         long idn = 123L;
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -265,6 +265,7 @@ public class OrderedProcessorTest {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                "topic");
     }
 }

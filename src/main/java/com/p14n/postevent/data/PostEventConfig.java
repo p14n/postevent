@@ -22,4 +22,8 @@ public interface PostEventConfig {
     public default int startupTimeoutSeconds() {
         return 30;
     }
+    public default String jdbcUrl() {
+        return String.format("jdbc:postgresql://%s:%d/%s",
+                dbHost(),dbPort(),dbName());
+    }
 }

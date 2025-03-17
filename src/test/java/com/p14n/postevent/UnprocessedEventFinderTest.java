@@ -1,5 +1,7 @@
-package com.p14n.postevent.data;
+package com.p14n.postevent;
 
+import com.p14n.postevent.data.Event;
+import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.p14n.postevent.db.DatabaseSetup;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
@@ -163,8 +165,9 @@ public class UnprocessedEventFinderTest {
         String subject = "test-subject";
         byte[] data = "{\"key\":\"value\"}".getBytes();
         long idn = 123L;
+        String topic = "test_events";
 
-        insertEventWithDetails(id, source, type, contentType, dataSchema, subject, data, Instant.now(), idn, "u");
+        insertEventWithDetails(id, source, type, contentType, dataSchema, subject, data, Instant.now(), idn, "u", topic);
 
         // Call the method
         List<Event> events = eventFinder.findUnprocessedEvents(connection);
@@ -210,8 +213,9 @@ public class UnprocessedEventFinderTest {
         String contentType = "application/json";
         String dataSchema = "test-schema";
         byte[] data = "{\"key\":\"value\"}".getBytes();
+        String topic = "test_events";
 
-        insertEventWithDetails(id, source, type, contentType, dataSchema, subject, data, createdAt, idn, status);
+        insertEventWithDetails(id, source, type, contentType, dataSchema, subject, data, createdAt, idn, status, topic);
     }
 
     /**
@@ -219,10 +223,10 @@ public class UnprocessedEventFinderTest {
      */
     private void insertEventWithDetails(String id, String source, String type, String contentType,
             String dataSchema, String subject, byte[] data,
-            Instant createdAt, long idn, String status) throws SQLException {
+            Instant createdAt, long idn, String status, String topic) throws SQLException {
         String sql = "INSERT INTO postevent.messages " +
-                "(id, source, type, datacontenttype, dataschema, subject, data, time, idn, status) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "(id, source, type, datacontenttype, dataschema, subject, data, time, idn, status, topic) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, id);
@@ -235,6 +239,7 @@ public class UnprocessedEventFinderTest {
             stmt.setTimestamp(8, Timestamp.from(createdAt));
             stmt.setLong(9, idn);
             stmt.setString(10, status);
+            stmt.setString(11, topic);
 
             stmt.executeUpdate();
         }

@@ -3,18 +3,12 @@ package com.p14n.postevent.broker;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Default implementation of MessageBroker using thread-safe collections.
- * 
- * @param <T> The type of messages this broker handles
- */
-public class DefaultMessageBroker<T> implements MessageBroker<T> {
+public abstract class DefaultMessageBroker<InT,OutT> implements MessageBroker<InT,OutT>,AutoCloseable {
 
-    protected final CopyOnWriteArraySet<MessageSubscriber<T>> subscribers = new CopyOnWriteArraySet<>();
-    private final AtomicBoolean closed = new AtomicBoolean(false);
+    protected final CopyOnWriteArraySet<MessageSubscriber<OutT>> subscribers = new CopyOnWriteArraySet<>();
+    protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-    @Override
-    public void publish(T message) {
+    protected boolean canProcess(InT message){
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
@@ -25,13 +19,22 @@ public class DefaultMessageBroker<T> implements MessageBroker<T> {
 
         // If no subscribers, message is silently dropped
         if (subscribers.isEmpty()) {
+            return false;
+        }
+        return true;
+
+    }
+
+    @Override
+    public void publish(InT message) {
+
+        if(!canProcess(message)){
             return;
         }
-
         // Deliver to all subscribers
-        for (MessageSubscriber<T> subscriber : subscribers) {
+        for (MessageSubscriber<OutT> subscriber : subscribers) {
             try {
-                subscriber.onMessage(message);
+                subscriber.onMessage(convert(message));
             } catch (Exception e) {
                 try {
                     subscriber.onError(e);
@@ -43,7 +46,7 @@ public class DefaultMessageBroker<T> implements MessageBroker<T> {
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<T> subscriber) {
+    public boolean subscribe(MessageSubscriber<OutT> subscriber) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
@@ -56,7 +59,7 @@ public class DefaultMessageBroker<T> implements MessageBroker<T> {
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<T> subscriber) {
+    public boolean unsubscribe(MessageSubscriber<OutT> subscriber) {
         if (subscriber == null) {
             throw new IllegalArgumentException("Subscriber cannot be null");
         }
@@ -69,7 +72,7 @@ public class DefaultMessageBroker<T> implements MessageBroker<T> {
         if (closed.compareAndSet(false, true)) {
             // Notify all subscribers of shutdown
             Throwable shutdownError = new IllegalStateException("Message broker is shutting down");
-            for (MessageSubscriber<T> subscriber : subscribers) {
+            for (MessageSubscriber<OutT> subscriber : subscribers) {
                 try {
                     subscriber.onError(shutdownError);
                 } catch (Exception ignored) {
