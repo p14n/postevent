@@ -53,7 +53,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(HOST, PORT);
+        client = new MessageBrokerGrpcClient(HOST, PORT,"*");
     }
 
     @AfterEach

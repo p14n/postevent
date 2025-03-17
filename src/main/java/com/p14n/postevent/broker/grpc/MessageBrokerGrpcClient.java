@@ -21,23 +21,25 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
 
     ManagedChannel channel;
+    String topic;
 
-    public MessageBrokerGrpcClient(String host, int port) {
+    public MessageBrokerGrpcClient(String host, int port, String topic) {
         this(ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
-                .build());
+                .build(),topic);
     }
 
-    public MessageBrokerGrpcClient(ManagedChannel channel) {
+    public MessageBrokerGrpcClient(ManagedChannel channel, String topic) {
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
+        this.topic = topic;
     }
 
     public void subscribeToEvents() {
         SubscriptionRequest request = SubscriptionRequest.newBuilder()
-                .setTopic("*")
+                .setTopic(topic)
                 .build();
 
         StreamObserver<EventResponse> responseObserver = new StreamObserver<EventResponse>() {

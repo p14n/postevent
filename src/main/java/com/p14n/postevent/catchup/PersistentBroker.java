@@ -10,7 +10,7 @@ import com.p14n.postevent.db.SQL;
 import javax.sql.DataSource;
 import java.sql.*;
 
-public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoCloseable {
+public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoCloseable, MessageSubscriber<Event> {
     private static final String INSERT_SQL = "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
             ") VALUES (" + SQL.EXT_PH + ")";
     private static final String UPDATE_HWM_SQL = "UPDATE postevent.contiguous_hwm set hwm=? where topic_name=? and hwm=?";
@@ -80,5 +80,10 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
     @Override
     public OutT convert(Event m) {
         return null;
+    }
+
+    @Override
+    public void onMessage(Event message) {
+        publish(message);
     }
 }

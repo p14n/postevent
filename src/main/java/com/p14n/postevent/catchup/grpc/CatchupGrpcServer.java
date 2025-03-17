@@ -52,10 +52,10 @@ public class CatchupGrpcServer {
         }
     }
 
-    private static class CatchupServiceImpl extends CatchupServiceGrpc.CatchupServiceImplBase {
+    public static class CatchupServiceImpl extends CatchupServiceGrpc.CatchupServiceImplBase {
         private final CatchupServerInterface catchupServer;
 
-        CatchupServiceImpl(CatchupServerInterface catchupServer) {
+        public CatchupServiceImpl(CatchupServerInterface catchupServer) {
             this.catchupServer = catchupServer;
         }
 

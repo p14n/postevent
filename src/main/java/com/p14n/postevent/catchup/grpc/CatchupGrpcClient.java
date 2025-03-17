@@ -77,7 +77,11 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
     }
 
     @Override
-    public void close() throws Exception {
-        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+    public void close()  {
+        try {
+            channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE,"Failed to close",e);
+        }
     }
 }

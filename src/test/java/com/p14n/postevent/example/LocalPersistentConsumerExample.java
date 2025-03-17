@@ -21,10 +21,9 @@ public class LocalPersistentConsumerExample {
 
     public static void main(String[] args) throws IOException, InterruptedException, SQLException {
         CountDownLatch l = new CountDownLatch(1);
-        var seb = new SystemEventBroker();
-
         try (var pg = ExampleUtil.embeddedPostgres();
              var tb = new TransactionalBroker(pg.getPostgresDatabase());
+             var seb = new SystemEventBroker();
              var pb = new PersistentBroker<>(tb,pg.getPostgresDatabase(),seb);
              var lc = new LocalConsumer<>(new ConfigData(
                      "local",
@@ -35,6 +34,8 @@ public class LocalPersistentConsumerExample {
                      "postgres",
                      "postgres"
              ), pb)){
+            seb.subscribe(new CatchupService(pg.getPostgresDatabase(),
+                    new CatchupServer(pg.getPostgresDatabase())));
 
             tb.subscribe(message -> {
                 System.err.println("********* Message received *************");

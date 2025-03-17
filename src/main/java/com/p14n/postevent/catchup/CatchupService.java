@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
 
 import com.p14n.postevent.db.SQL;
 import org.slf4j.Logger;
@@ -24,11 +25,11 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
     private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
     private static final int DEFAULT_BATCH_SIZE = 20;
 
-    private final CatchupServer catchupServer;
+    private final CatchupServerInterface catchupServer;
     private final DataSource datasource;
     private int batchSize = DEFAULT_BATCH_SIZE;
 
-    public CatchupService(DataSource ds, CatchupServer catchupServer) {
+    public CatchupService(DataSource ds, CatchupServerInterface catchupServer) {
         this.datasource = ds;
         this.catchupServer = catchupServer;
     }
@@ -166,10 +167,8 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
 
     @Override
     public void onMessage(SystemEvent message) {
-        switch (message) {
-            case CatchupRequired:
-                catchup(message.topic);
-                break;
+        if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
+            catchup(message.topic);
         }
     }
 
