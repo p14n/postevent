@@ -98,7 +98,7 @@ public class RemoteConsumerExample {
             Thread.sleep(2000);
 
             Publisher.publish(TestUtil.createTestEvent(1), ds, cfg.name());
-            
+
             serverLatch.await();
 
         }
