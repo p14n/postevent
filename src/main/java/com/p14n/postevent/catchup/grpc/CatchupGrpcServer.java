@@ -65,7 +65,8 @@ public class CatchupGrpcServer {
                 List<Event> events = catchupServer.fetchEvents(
                         request.getStartAfter(),
                         request.getEnd(),
-                        request.getMaxResults());
+                        request.getMaxResults(),
+                        request.getTopic());
 
                 List<com.p14n.postevent.catchup.grpc.Event> grpcEvents = events.stream()
                         .map(this::convertToGrpcEvent)

@@ -4,6 +4,8 @@ import com.p14n.postevent.LocalConsumer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.broker.*;
+import com.p14n.postevent.catchup.CatchupServer;
+import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
@@ -23,7 +25,7 @@ public class LocalPersistentConsumerExample {
 
         try (var pg = ExampleUtil.embeddedPostgres();
              var tb = new TransactionalBroker(pg.getPostgresDatabase());
-             var pb = new PersistentBroker<>(tb,pg.getPostgresDatabase(),"test",seb);
+             var pb = new PersistentBroker<>(tb,pg.getPostgresDatabase(),seb);
              var lc = new LocalConsumer<>(new ConfigData(
                      "local",
                      "topic",

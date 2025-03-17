@@ -18,18 +18,16 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
 
     private final ManagedChannel channel;
     private final CatchupServiceGrpc.CatchupServiceBlockingStub blockingStub;
-    private final String topic;
 
-    public CatchupGrpcClient(String host, int port, String topic) {
+    public CatchupGrpcClient(String host, int port) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build();
         this.blockingStub = CatchupServiceGrpc.newBlockingStub(channel);
-        this.topic = topic;
     }
 
     @Override
-    public List<Event> fetchEvents(long startAfter, long end, int maxResults) {
+    public List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic) {
         LOGGER.info(String.format("Fetching events from topic %s between %d and %d (max: %d)",
                 topic, startAfter, end, maxResults));
 
@@ -50,14 +48,14 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
 
         List<Event> events = new ArrayList<>();
         for (com.p14n.postevent.catchup.grpc.Event grpcEvent : response.getEventsList()) {
-            events.add(convertFromGrpcEvent(grpcEvent));
+            events.add(convertFromGrpcEvent(grpcEvent,topic));
         }
 
         LOGGER.info(String.format("Fetched %d events from topic %s", events.size(), topic));
         return events;
     }
 
-    private Event convertFromGrpcEvent(com.p14n.postevent.catchup.grpc.Event grpcEvent) {
+    private Event convertFromGrpcEvent(com.p14n.postevent.catchup.grpc.Event grpcEvent, String topic) {
         OffsetDateTime time = null;
         if (!grpcEvent.getTime().isEmpty()) {
             time = OffsetDateTime.parse(grpcEvent.getTime());

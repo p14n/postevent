@@ -17,16 +17,14 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
 
     private final MessageBroker<Event, OutT> targetBroker;
     private final DataSource dataSource;
-    private final String subscriberName;
+  //  private final String topicName;
     private final SystemEventBroker systemEventBroker;
 
     public PersistentBroker(MessageBroker<Event, OutT> targetBroker,
             DataSource dataSource,
-            String subscriberName,
             SystemEventBroker systemEventBroker) {
         this.targetBroker = targetBroker;
         this.dataSource = dataSource;
-        this.subscriberName = subscriberName;
         this.systemEventBroker = systemEventBroker;
     }
 
@@ -43,12 +41,12 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
             }
             try (PreparedStatement stmt = conn.prepareStatement(UPDATE_HWM_SQL)) {
                 stmt.setLong(1, event.idn());
-                stmt.setString(2, subscriberName);
+                stmt.setString(2, event.topic());
                 stmt.setLong(3, event.idn() - 1);
                 int updates = stmt.executeUpdate();
                 if (updates < 1)
                     systemEventBroker
-                            .publish(SystemEvent.CatchupRequired.withTopic(this.subscriberName));
+                            .publish(SystemEvent.CatchupRequired.withTopic(event.topic()));
             }
 
             conn.commit();

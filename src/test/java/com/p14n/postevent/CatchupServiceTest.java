@@ -48,9 +48,9 @@ public class CatchupServiceTest {
                 .createContiguousHwmTableIfNotExists();
 
         // Initialize components
-        catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
+        catchupServer = new CatchupServer(pg.getPostgresDatabase());
         catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer);
-        persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(), "test",
+        persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(),
                 new SystemEventBroker());
     }
 
@@ -62,20 +62,23 @@ public class CatchupServiceTest {
     }
 
     private void createProcessingGap(Connection connection) throws Exception {
-        connection.createStatement().execute("""
-                INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
-                select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
-                from postevent.test_events
-                where idn = (select max(idn) from postevent.test_events)
-                """);
+        connection.createStatement().execute(
+                """
+                        INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
+                        select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
+                        from postevent.test_events
+                        where idn = (select max(idn) from postevent.test_events)
+                        """);
     }
 
     private void copyEventsToMessages(Connection connection, long lowestIdn) throws Exception {
-        connection.createStatement().execute("""
-                INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
-                select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
-                from postevent.test_events
-                where idn >= """ + lowestIdn);
+        connection.createStatement().execute(
+                """
+                        INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
+                        select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
+                        from postevent.test_events
+                        where idn >= """
+                        + lowestIdn);
     }
 
     @Test
@@ -246,13 +249,13 @@ public class CatchupServiceTest {
     /**
      * Helper method to initialize HWM for a subscriber
      */
-    private void initializeHwm(Connection connection, String subscriberName, long hwm) throws SQLException {
+    private void initializeHwm(Connection connection, String topicName, long hwm) throws SQLException {
         String sql = "INSERT INTO postevent.contiguous_hwm (topic_name, hwm) " +
                 "VALUES (?, ?) " +
                 "ON CONFLICT (topic_name) DO UPDATE SET hwm = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, subscriberName);
+            stmt.setString(1, topicName);
             stmt.setLong(2, hwm);
             stmt.setLong(3, hwm);
 
@@ -263,11 +266,11 @@ public class CatchupServiceTest {
     /**
      * Helper method to get current HWM for a subscriber
      */
-    private long getCurrentHwm(Connection connection, String subscriberName) throws SQLException {
+    private long getCurrentHwm(Connection connection, String topicName) throws SQLException {
         String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE topic_name = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, subscriberName);
+            stmt.setString(1, topicName);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

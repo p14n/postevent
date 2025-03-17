@@ -38,7 +38,7 @@ class PersistentBrokerTest {
 
         conn = pg.getPostgresDatabase().getConnection();
         mockSubscriber = Mockito.mock(MessageBroker.class);
-        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase(), "test",
+        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase(),
                 new SystemEventBroker());
     }
 

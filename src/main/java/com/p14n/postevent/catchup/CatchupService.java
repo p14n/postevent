@@ -59,7 +59,7 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
             }
 
             // Fetch events from catchup server
-            List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, batchSize);
+            List<Event> events = catchupServer.fetchEvents(currentHwm, gapEnd, batchSize, topicName);
 
             if (events.isEmpty()) {
                 LOGGER.info("No events found in range for topic: " + topicName);

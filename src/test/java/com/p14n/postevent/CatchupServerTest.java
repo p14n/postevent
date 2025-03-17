@@ -36,7 +36,7 @@ public class CatchupServerTest {
         setup.createTableIfNotExists(TEST_TOPIC);
 
         // Create catchup server
-        catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
+        catchupServer = new CatchupServer(pg.getPostgresDatabase());
     }
 
     @AfterEach
@@ -57,7 +57,7 @@ public class CatchupServerTest {
             }
         }
         // Fetch events
-        List<Event> events = catchupServer.fetchEvents(1, 5, 10);
+        List<Event> events = catchupServer.fetchEvents(1, 5, 10,TEST_TOPIC);
 
         // Verify results
         assertEquals(4, events.size());
@@ -75,17 +75,17 @@ public class CatchupServerTest {
         }
 
         // Test with different maxResults values
-        List<Event> events1 = catchupServer.fetchEvents(1, 20, 5);
+        List<Event> events1 = catchupServer.fetchEvents(1, 20, 5,TEST_TOPIC);
         assertEquals(5, events1.size());
 
-        List<Event> events2 = catchupServer.fetchEvents(1, 20, 10);
+        List<Event> events2 = catchupServer.fetchEvents(1, 20, 10,TEST_TOPIC);
         assertEquals(10, events2.size());
 
-        List<Event> events3 = catchupServer.fetchEvents(1, 20, 15);
+        List<Event> events3 = catchupServer.fetchEvents(1, 20, 15,TEST_TOPIC);
         assertEquals(15, events3.size());
 
         // When maxResults is greater than available events
-        List<Event> events4 = catchupServer.fetchEvents(10, 20, 20);
+        List<Event> events4 = catchupServer.fetchEvents(10, 20, 20,TEST_TOPIC);
         assertEquals(10, events4.size());
     }
 
@@ -101,7 +101,7 @@ public class CatchupServerTest {
         }
 
         // Request a large range but limit with maxResults
-        List<Event> events = catchupServer.fetchEvents(0, 50, 25);
+        List<Event> events = catchupServer.fetchEvents(0, 50, 25,TEST_TOPIC);
 
         // Verify maxResults is respected
         assertEquals(25, events.size());
@@ -119,9 +119,9 @@ public class CatchupServerTest {
     @Test
     public void testInvalidParameters() {
         // Test invalid start/end
-        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(10, 5, 10));
+        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(10, 5, 10,TEST_TOPIC));
 
         // Test invalid maxResults
-        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(1, 10, 0));
+        assertThrows(IllegalArgumentException.class, () -> catchupServer.fetchEvents(1, 10, 0,TEST_TOPIC));
     }
 }
