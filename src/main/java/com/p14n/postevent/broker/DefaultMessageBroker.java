@@ -1,5 +1,6 @@
 package com.p14n.postevent.broker;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -7,6 +8,15 @@ public abstract class DefaultMessageBroker<InT,OutT> implements MessageBroker<In
 
     protected final CopyOnWriteArraySet<MessageSubscriber<OutT>> subscribers = new CopyOnWriteArraySet<>();
     protected final AtomicBoolean closed = new AtomicBoolean(false);
+
+    private final AsyncExecutor asyncExecutor;
+
+    public DefaultMessageBroker(){
+        this(new DefaultExecutor(2));
+    }
+    public DefaultMessageBroker(AsyncExecutor asyncExecutor) {
+        this.asyncExecutor = asyncExecutor;
+    }
 
     protected boolean canProcess(InT message){
         if (closed.get()) {
@@ -33,15 +43,20 @@ public abstract class DefaultMessageBroker<InT,OutT> implements MessageBroker<In
         }
         // Deliver to all subscribers
         for (MessageSubscriber<OutT> subscriber : subscribers) {
-            try {
-                subscriber.onMessage(convert(message));
-            } catch (Exception e) {
+            asyncExecutor.submit(() -> {
                 try {
-                    subscriber.onError(e);
-                } catch (Exception ignored) {
-                    // If error handling fails, we ignore it to protect other subscribers
+                    subscriber.onMessage(convert(message));
+                    return null;
+                } catch (Exception e) {
+                    try {
+                        subscriber.onError(e);
+                    } catch (Exception ignored) {
+                        // If error handling fails, we ignore it to protect other subscribers
+                    }
                 }
-            }
+                return null;
+            });
+
         }
     }
 

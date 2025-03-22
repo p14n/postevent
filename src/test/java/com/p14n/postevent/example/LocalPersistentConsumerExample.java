@@ -7,8 +7,10 @@ import com.p14n.postevent.broker.*;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
+import com.p14n.postevent.catchup.UnprocessedSubmitter;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
+import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.zaxxer.hikari.HikariDataSource;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class LocalPersistentConsumerExample {
 
@@ -34,8 +37,17 @@ public class LocalPersistentConsumerExample {
                      "postgres",
                      "postgres"
              ), pb)){
-            seb.subscribe(new CatchupService(pg.getPostgresDatabase(),
-                    new CatchupServer(pg.getPostgresDatabase())));
+            var ds = pg.getPostgresDatabase();
+
+            seb.subscribe(new CatchupService(ds,
+                    new CatchupServer(pg.getPostgresDatabase()),seb));
+            var unprocessedSubmitter = new UnprocessedSubmitter(ds,new UnprocessedEventFinder(),tb);
+            seb.subscribe(unprocessedSubmitter);
+
+            var asyncExecutor = new DefaultExecutor(2);
+            asyncExecutor.scheduleAtFixedRate(() -> {
+                seb.publish(SystemEvent.UnprocessedCheckRequired);
+            },30,30, TimeUnit.SECONDS);
 
             tb.subscribe(message -> {
                 System.err.println("********* Message received *************");
@@ -43,7 +55,7 @@ public class LocalPersistentConsumerExample {
             });
 
             lc.start();
-            Publisher.publish(TestUtil.createTestEvent(1), pg.getPostgresDatabase(), "topic");
+            Publisher.publish(TestUtil.createTestEvent(1), ds, "topic");
             l.await();
 
         }

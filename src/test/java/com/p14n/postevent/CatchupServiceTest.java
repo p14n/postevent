@@ -49,7 +49,7 @@ public class CatchupServiceTest {
 
         // Initialize components
         catchupServer = new CatchupServer(pg.getPostgresDatabase());
-        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer);
+        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, new SystemEventBroker());
         persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(),
                 new SystemEventBroker());
     }
@@ -69,6 +69,7 @@ public class CatchupServiceTest {
                         from postevent.test_events
                         where idn = (select max(idn) from postevent.test_events)
                         """);
+        connection.commit();
     }
 
     private void copyEventsToMessages(Connection connection, long lowestIdn) throws Exception {
@@ -85,6 +86,7 @@ public class CatchupServiceTest {
     public void testCatchupProcessesNewEvents() throws Exception {
         // Publish some test events
         try (Connection connection = pg.getPostgresDatabase().getConnection()) {
+            connection.setAutoCommit(false);
 
             List<Event> publishedEvents = new ArrayList<>();
             for (int i = 1; i < 26; i++) {
@@ -129,7 +131,7 @@ public class CatchupServiceTest {
     public void testCatchupWithExistingHwm() throws Exception {
 
         try (Connection connection = pg.getPostgresDatabase().getConnection()) {
-
+            connection.setAutoCommit(false);
             // Publish some initial events
             log.debug("Publishing initial 10 events");
             for (int i = 1; i < 11; i++) {
@@ -143,6 +145,7 @@ public class CatchupServiceTest {
             // Process initial events
             log.debug("Processing initial events");
             int initialProcessed = catchupService.catchup(TEST_TOPIC);
+
             long initialHwm = getCurrentHwm(connection, TEST_TOPIC);
             log.debug("Initial processing complete: processed {} events, HWM = {}",
                     initialProcessed, initialHwm);

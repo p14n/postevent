@@ -28,10 +28,12 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
     private final CatchupServerInterface catchupServer;
     private final DataSource datasource;
     private int batchSize = DEFAULT_BATCH_SIZE;
+    private final SystemEventBroker systemEventBroker;
 
-    public CatchupService(DataSource ds, CatchupServerInterface catchupServer) {
+    public CatchupService(DataSource ds, CatchupServerInterface catchupServer, SystemEventBroker systemEventBroker) {
         this.datasource = ds;
         this.catchupServer = catchupServer;
+        this.systemEventBroker = systemEventBroker;
     }
 
     /**
@@ -45,6 +47,7 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
     public int catchup(String topicName) {
 
         try (Connection conn = datasource.getConnection()) {
+            conn.setAutoCommit(false);
 
             long currentHwm = getCurrentHwm(conn, topicName);
 
@@ -77,6 +80,8 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
             LOGGER.info(String.format("Processed %d events for topic %s, updated HWM from %d to %d",
                     processedCount, topicName, currentHwm, newHwm));
 
+            conn.commit();
+            systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
             return processedCount;
         } catch (SQLException e) {
             LOGGER.error("Failed to catch up", e);

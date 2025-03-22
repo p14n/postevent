@@ -2,7 +2,8 @@ package com.p14n.postevent.broker;
 
 public enum SystemEvent {
 
-    CatchupRequired;
+    CatchupRequired,
+    UnprocessedCheckRequired;
 
     public String topic;
 

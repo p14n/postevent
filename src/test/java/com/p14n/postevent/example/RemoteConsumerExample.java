@@ -24,10 +24,10 @@ import java.util.concurrent.TimeUnit;
 
 public class RemoteConsumerExample {
 
-    private static void constructServer(DataSource ds,ConfigData cfg,CountDownLatch l, int port) {
+    private static void constructServer(DataSource ds, ConfigData cfg, CountDownLatch l, int port) {
 
         try (var mb = new EventMessageBroker();
-             var lc = new LocalConsumer<>(cfg, mb)){
+                var lc = new LocalConsumer<>(cfg, mb)) {
 
             var grpcServer = new MessageBrokerGrpcServer(mb);
             var catchupServer = new CatchupServer(ds);
@@ -47,17 +47,18 @@ public class RemoteConsumerExample {
             e.printStackTrace();
         }
     }
-    private static void constructClient(DataSource ds,CountDownLatch l, int port, String topic)  {
+
+    private static void constructClient(DataSource ds, CountDownLatch l, int port, String topic) {
 
         try (var tb = new TransactionalBroker(ds);
-             var seb = new SystemEventBroker();
-             var pb = new PersistentBroker<>(tb,ds,seb);
-             var client = new MessageBrokerGrpcClient("localhost", port, topic);
-             var catchupClient = new CatchupGrpcClient("localhost", port)){
+                var seb = new SystemEventBroker();
+                var pb = new PersistentBroker<>(tb, ds, seb);
+                var client = new MessageBrokerGrpcClient("localhost", port, topic);
+                var catchupClient = new CatchupGrpcClient("localhost", port)) {
 
             client.subscribe(pb);
 
-            seb.subscribe(new CatchupService(ds,catchupClient));
+            seb.subscribe(new CatchupService(ds, catchupClient, seb));
 
             tb.subscribe(message -> {
                 System.err.println("********* Message received *************");
@@ -73,11 +74,10 @@ public class RemoteConsumerExample {
 
     public static void main(String[] args) throws Exception {
 
-
         int port = 50052;
 
         try (var pg = ExampleUtil.embeddedPostgres();
-             var es = Executors.newVirtualThreadPerTaskExecutor()){
+                var es = Executors.newVirtualThreadPerTaskExecutor()) {
 
             var ds = pg.getPostgresDatabase();
             var cfg = new ConfigData(
@@ -87,13 +87,12 @@ public class RemoteConsumerExample {
                     pg.getPort(),
                     "postgres",
                     "postgres",
-                    "postgres"
-            );
+                    "postgres");
             CountDownLatch serverLatch = new CountDownLatch(1);
 
             es.execute(() -> constructServer(ds, cfg, serverLatch, port));
 
-            es.execute( () -> constructClient(ds,serverLatch,port,cfg.name()));
+            es.execute(() -> constructClient(ds, serverLatch, port, cfg.name()));
 
             Thread.sleep(2000);
 
@@ -103,6 +102,5 @@ public class RemoteConsumerExample {
 
         }
     }
-
 
 }

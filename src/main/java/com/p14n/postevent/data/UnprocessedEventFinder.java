@@ -32,7 +32,7 @@ public class UnprocessedEventFinder {
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
                 "time, idn, topic FROM postevent.messages " +
                 "WHERE status = 'u' " +
-                "ORDER BY time ASC";
+                "ORDER BY idn ASC";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {

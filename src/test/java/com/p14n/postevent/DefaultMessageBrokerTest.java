@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 2, unit = TimeUnit.SECONDS)
 class DefaultMessageBrokerTest {
 
-    private volatile DefaultMessageBroker<String,String> broker;
+    private volatile DefaultMessageBroker<String, String> broker;
 
     @AfterEach
     void tearDown() {
@@ -43,14 +43,14 @@ class DefaultMessageBrokerTest {
     }
 
     @Test
-    void shouldDeliverMessageToMultipleSubscribers() {
-        AtomicInteger counter1 = new AtomicInteger();
-        AtomicInteger counter2 = new AtomicInteger();
+    void shouldDeliverMessageToMultipleSubscribers() throws InterruptedException {
+        CountDownLatch counter1 = new CountDownLatch(1);
+        CountDownLatch counter2 = new CountDownLatch(1);
 
         MessageSubscriber<String> subscriber1 = new MessageSubscriber<>() {
             @Override
             public void onMessage(String message) {
-                counter1.incrementAndGet();
+                counter1.countDown();
             }
 
             @Override
@@ -61,7 +61,7 @@ class DefaultMessageBrokerTest {
         MessageSubscriber<String> subscriber2 = new MessageSubscriber<>() {
             @Override
             public void onMessage(String message) {
-                counter2.incrementAndGet();
+                counter2.countDown();
             }
 
             @Override
@@ -74,8 +74,8 @@ class DefaultMessageBrokerTest {
 
         broker.publish("test");
 
-        assertEquals(1, counter1.get());
-        assertEquals(1, counter2.get());
+        assertTrue(counter1.await(1, TimeUnit.SECONDS));
+        assertTrue(counter2.await(1, TimeUnit.SECONDS));
     }
 
     @Test
@@ -84,8 +84,9 @@ class DefaultMessageBrokerTest {
     }
 
     @Test
-    void shouldNotifySubscriberOfErrors() {
+    void shouldNotifySubscriberOfErrors() throws InterruptedException {
         AtomicReference<Throwable> caughtError = new AtomicReference<>();
+        CountDownLatch counter = new CountDownLatch(1);
         RuntimeException testException = new RuntimeException("test error");
 
         MessageSubscriber<String> erroringSubscriber = new MessageSubscriber<>() {
@@ -97,12 +98,14 @@ class DefaultMessageBrokerTest {
             @Override
             public void onError(Throwable error) {
                 caughtError.set(error);
+                counter.countDown();
             }
         };
 
         broker.subscribe(erroringSubscriber);
         broker.publish("test");
 
+        assertTrue(counter.await(1, TimeUnit.SECONDS));
         assertSame(testException, caughtError.get());
     }
 
@@ -161,13 +164,14 @@ class DefaultMessageBrokerTest {
     }
 
     @Test
-    void shouldStopDeliveringMessagesAfterUnsubscribe() {
+    void shouldStopDeliveringMessagesAfterUnsubscribe() throws InterruptedException {
         AtomicInteger messageCount = new AtomicInteger();
-
+        CountDownLatch counter = new CountDownLatch(1);
         MessageSubscriber<String> subscriber = new MessageSubscriber<>() {
             @Override
             public void onMessage(String message) {
                 messageCount.incrementAndGet();
+                counter.countDown();
             }
 
             @Override
@@ -177,10 +181,11 @@ class DefaultMessageBrokerTest {
 
         broker.subscribe(subscriber);
         broker.publish("first message");
-        assertEquals(1, messageCount.get(), "Should receive message while subscribed");
+        assertTrue(counter.await(1, TimeUnit.SECONDS), "Should receive message while subscribed");
 
         broker.unsubscribe(subscriber);
         broker.publish("second message");
+        Thread.sleep(100);
         assertEquals(1, messageCount.get(), "Should not receive message after unsubscribe");
     }
 }
