@@ -16,5 +16,7 @@ public interface MessageSubscriber<T> {
      * Called when an error occurs that prevents further message processing.
      * @param error The error that occurred
      */
-    void onError(Throwable error);
+    default void onError(Throwable error){
+
+    }
 }

@@ -26,4 +26,5 @@ message EventResponse {
   string subject = 7;
   bytes data = 8;
   int64 idn = 9;
-} 
+  string topic = 10;
+}

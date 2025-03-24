@@ -30,9 +30,9 @@ public class UnprocessedEventFinder {
         LOGGER.info("Finding all unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn FROM postevent.messages " +
+                "time, idn, topic FROM postevent.messages " +
                 "WHERE status = 'u' " +
-                "ORDER BY time ASC";
+                "ORDER BY idn ASC";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
@@ -56,7 +56,7 @@ public class UnprocessedEventFinder {
         LOGGER.info("Finding unprocessed events for subject: " + subject);
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn FROM postevent.messages " +
+                "time, idn, topic FROM postevent.messages " +
                 "WHERE status = 'u' AND subject = ? " +
                 "ORDER BY time ASC";
 
@@ -84,7 +84,7 @@ public class UnprocessedEventFinder {
         LOGGER.info("Finding up to " + limit + " unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn FROM postevent.messages " +
+                "time, idn, topic FROM postevent.messages " +
                 "WHERE status = 'u' " +
                 "ORDER BY time ASC " +
                 "LIMIT ?";
@@ -135,8 +135,9 @@ public class UnprocessedEventFinder {
         byte[] data = rs.getBytes("data");
         Instant time = rs.getTimestamp("time").toInstant();
         long idn = rs.getLong("idn");
+        String topic = rs.getString("topic");
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -145,7 +146,8 @@ public class UnprocessedEventFinder {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                topic);
     }
 
     /**

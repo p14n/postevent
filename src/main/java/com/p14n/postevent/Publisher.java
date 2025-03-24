@@ -3,6 +3,7 @@ package com.p14n.postevent;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.SQL;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -14,6 +15,9 @@ import static com.p14n.postevent.db.SQL.setEventOnStatement;
  */
 public class Publisher {
 
+    private Publisher(){
+
+    }
     /**
      * Publishes an event to the specified topic table.
      *
@@ -24,7 +28,7 @@ public class Publisher {
      * @throws IllegalArgumentException if the topic is null, empty, or contains
      *                                  invalid characters
      */
-    public void publish(Event event, Connection connection, String topic) throws SQLException {
+    public static void publish(Event event, Connection connection, String topic) throws SQLException {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic name cannot be null or empty");
         }
@@ -41,4 +45,9 @@ public class Publisher {
         }
     }
 
+    public static void publish(Event event, DataSource ds, String topic) throws SQLException {
+        try (Connection c = ds.getConnection()) {
+            publish(event, c, topic);
+        }
+    }
 }
