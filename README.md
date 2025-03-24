@@ -29,14 +29,18 @@ Create a catchup mechanism
 * Request a batch of messages from the server
 * Write each message to the consumer
 * Stop when the catchup mechanism detects that it is overwriting the live messages
-- [ ] Request a batch of messages from the server (starting from?)
-- [ ] Write each message to the consumer
-- [ ] Stop when the catchup mechanism detects that it is overwriting the live messages
-- [ ] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
-- [ ] Verifies that there are no earlier unprocessed events for the same subject
+- [x] Request a batch of messages from the server (starting from?)
+- [x] Write each message to the consumer
+- [x] Stop when the catchup mechanism detects that it is overwriting the live messages
+- [x] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
 
 Create a processor
-- [ ] ?
+- [x] Verifies that there are no earlier unprocessed events for the same subject
+
+- [X] Hook up catchup mechanism
+- [ ] Make server handle multiple topics
+- [X] Make threading mechanism pluggable
+- [ ] DST tests
 
 DB Debezium DONE
 LC Local Consumer DONE

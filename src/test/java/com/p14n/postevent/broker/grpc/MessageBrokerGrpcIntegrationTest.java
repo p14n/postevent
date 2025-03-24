@@ -53,7 +53,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(HOST, PORT);
+        client = new MessageBrokerGrpcClient(HOST, PORT,"*");
     }
 
     @AfterEach
@@ -187,7 +187,7 @@ public class MessageBrokerGrpcIntegrationTest {
         byte[] data = "{\"key\":\"value\"}".getBytes();
         Instant time = Instant.now();
 
-        return new Event(
+        return Event.create(
                 id,
                 source,
                 type,
@@ -196,13 +196,14 @@ public class MessageBrokerGrpcIntegrationTest {
                 subject,
                 data,
                 time,
-                idn);
+                idn,
+                "topic");
     }
 
     /**
      * Test implementation of MessageBroker that allows controlling event flow
      */
-    private static class TestMessageBroker extends DefaultMessageBroker<Event> {
+    private static class TestMessageBroker extends DefaultMessageBroker<Event,Event> {
         private final List<Event> publishedEvents = new ArrayList<>();
 
         @Override
@@ -210,6 +211,11 @@ public class MessageBrokerGrpcIntegrationTest {
             publishedEvents.add(event);
             LOGGER.log(Level.INFO, "Published event in test broker: " + event.id());
             super.publish(event);
+        }
+
+        @Override
+        public Event convert(Event m) {
+            return m;
         }
 
         public List<Event> getPublishedEvents() {

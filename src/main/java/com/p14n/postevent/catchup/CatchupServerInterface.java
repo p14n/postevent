@@ -16,5 +16,5 @@ public interface CatchupServerInterface {
      * @param maxResults The maximum number of events to fetch
      * @return A list of events within the specified range
      */
-    List<Event> fetchEvents(long startAfter, long end, int maxResults);
+    List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic);
 }

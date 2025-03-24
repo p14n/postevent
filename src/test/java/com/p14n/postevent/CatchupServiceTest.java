@@ -1,8 +1,6 @@
 package com.p14n.postevent;
 
-import com.p14n.postevent.broker.DefaultMessageBroker;
-import com.p14n.postevent.broker.MessageBroker;
-import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.*;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
@@ -31,10 +29,7 @@ public class CatchupServiceTest {
 
     private static final Logger log = LoggerFactory.getLogger(CatchupServiceTest.class);
     private static final String TEST_TOPIC = "test_events";
-    private static final String SUBSCRIBER_NAME = "test_subscriber";
-
     private EmbeddedPostgres pg;
-    private Publisher publisher;
     private CatchupServer catchupServer;
     private CatchupService catchupService;
     private PersistentBroker persistentBroker;
@@ -53,10 +48,10 @@ public class CatchupServiceTest {
                 .createContiguousHwmTableIfNotExists();
 
         // Initialize components
-        publisher = new Publisher();
-        catchupServer = new CatchupServer(TEST_TOPIC, pg.getPostgresDatabase());
-        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, TEST_TOPIC);
-        persistentBroker = new PersistentBroker(new DefaultMessageBroker<>(), pg.getPostgresDatabase());
+        catchupServer = new CatchupServer(pg.getPostgresDatabase());
+        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, new SystemEventBroker());
+        persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(),
+                new SystemEventBroker());
     }
 
     @AfterEach
@@ -67,42 +62,47 @@ public class CatchupServiceTest {
     }
 
     private void createProcessingGap(Connection connection) throws Exception {
-        connection.createStatement().execute("""
-                INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn)
-                select id, source, type, datacontenttype, dataschema, subject, data, idn
-                from postevent.test_events
-                where idn = (select max(idn) from postevent.test_events)
-                """);
+        connection.createStatement().execute(
+                """
+                        INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
+                        select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
+                        from postevent.test_events
+                        where idn = (select max(idn) from postevent.test_events)
+                        """);
+        connection.commit();
     }
 
-    private void copyEventsToMessages(Connection connection,long lowestIdn) throws Exception {
-        connection.createStatement().execute("""
-                INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn)
-                select id, source, type, datacontenttype, dataschema, subject, data, idn
-                from postevent.test_events
-                where idn >= """ + lowestIdn);
+    private void copyEventsToMessages(Connection connection, long lowestIdn) throws Exception {
+        connection.createStatement().execute(
+                """
+                        INSERT INTO postevent.messages (id, source, type, datacontenttype, dataschema, subject, data, idn, topic)
+                        select id, source, type, datacontenttype, dataschema, subject, data, idn, 'test_events'
+                        from postevent.test_events
+                        where idn >= """
+                        + lowestIdn);
     }
 
     @Test
     public void testCatchupProcessesNewEvents() throws Exception {
         // Publish some test events
-        try (Connection connection = pg.getPostgresDatabase().getConnection()){
+        try (Connection connection = pg.getPostgresDatabase().getConnection()) {
+            connection.setAutoCommit(false);
 
             List<Event> publishedEvents = new ArrayList<>();
             for (int i = 1; i < 26; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
                 publishedEvents.add(event);
             }
 
             createProcessingGap(connection);
 
             // First catchup should process events
-            int processedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int processedCount = catchupService.catchup(TEST_TOPIC);
             assertTrue(processedCount > 0, "Should have processed some events");
 
             // Verify HWM was updated
-            long hwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
+            long hwm = getCurrentHwm(connection, TEST_TOPIC);
             assertTrue(hwm > 0, "HWM should have been updated");
 
             // Verify messages were written to messages table
@@ -111,7 +111,7 @@ public class CatchupServiceTest {
                     "Number of messages in table should match processed count");
 
             // Second catchup should process remaining events
-            int secondProcessedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int secondProcessedCount = catchupService.catchup(TEST_TOPIC);
             assertTrue(secondProcessedCount > 0,
                     "Should have processed remaining events");
 
@@ -121,23 +121,22 @@ public class CatchupServiceTest {
                     "All events should have been processed");
 
             // Third catchup should process no events
-            int thirdProcessedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
+            int thirdProcessedCount = catchupService.catchup(TEST_TOPIC);
             assertEquals(0, thirdProcessedCount, "No more events should be processed");
 
         }
     }
 
-
     @Test
     public void testCatchupWithExistingHwm() throws Exception {
 
         try (Connection connection = pg.getPostgresDatabase().getConnection()) {
-
+            connection.setAutoCommit(false);
             // Publish some initial events
             log.debug("Publishing initial 10 events");
             for (int i = 1; i < 11; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             createProcessingGap(connection);
@@ -145,8 +144,9 @@ public class CatchupServiceTest {
             logEventsInMessagesTable(connection);
             // Process initial events
             log.debug("Processing initial events");
-            int initialProcessed = catchupService.catchup(SUBSCRIBER_NAME, 20);
-            long initialHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
+            int initialProcessed = catchupService.catchup(TEST_TOPIC);
+
+            long initialHwm = getCurrentHwm(connection, TEST_TOPIC);
             log.debug("Initial processing complete: processed {} events, HWM = {}",
                     initialProcessed, initialHwm);
 
@@ -154,14 +154,14 @@ public class CatchupServiceTest {
             log.debug("Publishing 5 more events");
             for (int i = 11; i < 16; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
             createProcessingGap(connection);
             // Process new events
             log.debug("Processing new events");
-            int processedCount = catchupService.catchup(SUBSCRIBER_NAME, 20);
-            long newHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
+            int processedCount = catchupService.catchup(TEST_TOPIC);
+            long newHwm = getCurrentHwm(connection, TEST_TOPIC);
             log.debug("New processing complete: processed {} events, HWM = {}",
                     processedCount, newHwm);
 
@@ -187,22 +187,22 @@ public class CatchupServiceTest {
             log.debug("Publishing 5 sequential events");
             for (int i = 0; i < 5; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
-            copyEventsToMessages(connection,0);
+            copyEventsToMessages(connection, 0);
 
             // Initialize HWM to 0
-            initializeHwm(connection,SUBSCRIBER_NAME, 0);
+            initializeHwm(connection, TEST_TOPIC, 0);
 
             // Check for gaps
-            boolean hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, 0);
+            boolean hasGap = catchupService.hasSequenceGap(TEST_TOPIC, 0);
 
             // Verify no gap was found
             assertFalse(hasGap, "Should not find any gaps in sequential events");
 
             // Verify HWM was updated to the last event
-            long newHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
+            long newHwm = getCurrentHwm(connection, TEST_TOPIC);
             assertEquals(5, newHwm, "HWM should be updated to the last event");
         }
     }
@@ -219,32 +219,32 @@ public class CatchupServiceTest {
             // First, insert events 1-3
             for (int i = 1; i <= 3; i++) {
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
 
-            copyEventsToMessages(connection,0);
+            copyEventsToMessages(connection, 0);
 
             // Then insert events 4-6
             for (int i = 4; i <= 6; i++) {
                 log.debug("Publishing event {}", i);
                 Event event = createTestEvent(i);
-                publisher.publish(event, connection, TEST_TOPIC);
+                Publisher.publish(event, connection, TEST_TOPIC);
             }
-            copyEventsToMessages(connection,5);
+            copyEventsToMessages(connection, 5);
             logEventsInTopicTable(connection);
             logEventsInMessagesTable(connection);
 
             // Initialize HWM to 0
-            initializeHwm(connection,SUBSCRIBER_NAME, 0);
+            initializeHwm(connection, TEST_TOPIC, 0);
 
             // Check for gaps
-            boolean hasGap = catchupService.hasSequenceGap(SUBSCRIBER_NAME, 0);
+            boolean hasGap = catchupService.hasSequenceGap(TEST_TOPIC, 0);
 
             // Verify a gap was found
             assertTrue(hasGap, "Should find a gap in the sequence");
 
             // Verify HWM was updated to the last event before the gap
-            long newHwm = getCurrentHwm(connection,SUBSCRIBER_NAME);
+            long newHwm = getCurrentHwm(connection, TEST_TOPIC);
             assertEquals(3, newHwm, "HWM should be updated to the last event before the gap");
         }
     }
@@ -252,13 +252,13 @@ public class CatchupServiceTest {
     /**
      * Helper method to initialize HWM for a subscriber
      */
-    private void initializeHwm(Connection connection,String subscriberName, long hwm) throws SQLException {
-        String sql = "INSERT INTO postevent.contiguous_hwm (subscriber_name, hwm) " +
+    private void initializeHwm(Connection connection, String topicName, long hwm) throws SQLException {
+        String sql = "INSERT INTO postevent.contiguous_hwm (topic_name, hwm) " +
                 "VALUES (?, ?) " +
-                "ON CONFLICT (subscriber_name) DO UPDATE SET hwm = ?";
+                "ON CONFLICT (topic_name) DO UPDATE SET hwm = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, subscriberName);
+            stmt.setString(1, topicName);
             stmt.setLong(2, hwm);
             stmt.setLong(3, hwm);
 
@@ -269,11 +269,11 @@ public class CatchupServiceTest {
     /**
      * Helper method to get current HWM for a subscriber
      */
-    private long getCurrentHwm(Connection connection,String subscriberName) throws SQLException {
-        String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE subscriber_name = ?";
+    private long getCurrentHwm(Connection connection, String topicName) throws SQLException {
+        String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE topic_name = ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, subscriberName);
+            stmt.setString(1, topicName);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

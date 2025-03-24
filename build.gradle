@@ -13,11 +13,16 @@ repositories {
 
 dependencies {
     implementation 'io.debezium:debezium-api:3.0.1.Final'
-    implementation 'io.debezium:debezium-embedded:3.0.1.Final'
+    implementation ('io.debezium:debezium-embedded:3.0.1.Final') {
+        exclude group: 'org.glassfish.jersey.containers', module: 'jersey-container-servlet'
+        exclude group: 'org.glassfish.jersey.inject', module: 'jersey-hk2'
+        exclude group: 'org.eclipse.jetty'
+    }
     implementation 'io.debezium:debezium-connector-postgres:3.0.1.Final'
     implementation 'io.debezium:debezium-storage-jdbc:3.0.1.Final'
     implementation 'org.slf4j:slf4j-api:2.0.9'
-    
+    implementation 'com.zaxxer:HikariCP:6.2.1'
+
     // gRPC dependencies
     implementation 'io.grpc:grpc-netty-shaded:1.53.0'
     implementation 'io.grpc:grpc-protobuf:1.53.0'

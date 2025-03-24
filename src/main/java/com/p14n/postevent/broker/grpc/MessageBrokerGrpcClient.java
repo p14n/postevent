@@ -1,6 +1,6 @@
 package com.p14n.postevent.broker.grpc;
 
-import com.p14n.postevent.broker.DefaultMessageBroker;
+import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
@@ -15,29 +15,31 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> implements AutoCloseable {
+public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcClient.class.getName());
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
 
     ManagedChannel channel;
+    String topic;
 
-    public MessageBrokerGrpcClient(String host, int port) {
+    public MessageBrokerGrpcClient(String host, int port, String topic) {
         this(ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
-                .build());
+                .build(),topic);
     }
 
-    public MessageBrokerGrpcClient(ManagedChannel channel) {
+    public MessageBrokerGrpcClient(ManagedChannel channel, String topic) {
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
+        this.topic = topic;
     }
 
     public void subscribeToEvents() {
         SubscriptionRequest request = SubscriptionRequest.newBuilder()
-                .setTopic("*")
+                .setTopic(topic)
                 .build();
 
         StreamObserver<EventResponse> responseObserver = new StreamObserver<EventResponse>() {
@@ -76,8 +78,7 @@ public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> impleme
         if (!grpcEvent.getTime().isEmpty()) {
             time = OffsetDateTime.parse(grpcEvent.getTime());
         }
-
-        return new Event(
+        return Event.create(
                 grpcEvent.getId(),
                 grpcEvent.getSource(),
                 grpcEvent.getType(),
@@ -86,7 +87,8 @@ public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> impleme
                 grpcEvent.getSubject(),
                 grpcEvent.getData().toByteArray(),
                 time.toInstant(),
-                grpcEvent.getIdn());
+                grpcEvent.getIdn(),
+                grpcEvent.getTopic());
     }
 
     @Override
@@ -119,5 +121,5 @@ public class MessageBrokerGrpcClient extends DefaultMessageBroker<Event> impleme
         }
         return unsubscribed;
     }
-
 }
+

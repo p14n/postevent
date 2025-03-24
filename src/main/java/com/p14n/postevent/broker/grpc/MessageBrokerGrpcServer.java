@@ -14,9 +14,9 @@ import java.util.logging.Logger;
 
 public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBrokerServiceImplBase {
     private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcServer.class.getName());
-    private final MessageBroker<Event> messageBroker;
+    private final MessageBroker<Event,Event> messageBroker;
 
-    public MessageBrokerGrpcServer(MessageBroker<Event> messageBroker) {
+    public MessageBrokerGrpcServer(MessageBroker<Event,Event> messageBroker) {
         this.messageBroker = messageBroker;
     }
 

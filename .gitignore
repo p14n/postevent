@@ -251,3 +251,7 @@ replay_pid*
 
 ### vscode ###
 .vscode
+
+### clojure ###
+.clj-kondo/.cache
+.lsp

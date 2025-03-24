@@ -2,6 +2,7 @@ package com.p14n.postevent;
 
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
@@ -22,7 +23,7 @@ class PersistentBrokerTest {
     private EmbeddedPostgres pg;
     private Connection conn;
     private PersistentBroker persistentBroker;
-    private MessageBroker<Event> mockSubscriber;
+    private MessageBroker<Event, Event> mockSubscriber;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
@@ -32,11 +33,13 @@ class PersistentBrokerTest {
         // Create schema and messages table
         new DatabaseSetup(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres")
                 .createSchemaIfNotExists()
-                .createMessagesTableIfNotExists();
+                .createMessagesTableIfNotExists()
+                .createContiguousHwmTableIfNotExists();
 
         conn = pg.getPostgresDatabase().getConnection();
         mockSubscriber = Mockito.mock(MessageBroker.class);
-        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase());
+        persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase(),
+                new SystemEventBroker());
     }
 
     @AfterEach
@@ -52,7 +55,7 @@ class PersistentBrokerTest {
         // Create test event
         Event testEvent = Event.create(
                 "test-123", "test-source", "test-type", "text/plain",
-                "test-schema", "test-subject", "test-data".getBytes(), Instant.now(),1L);
+                "test-schema", "test-subject", "test-data".getBytes(), Instant.now(), 1L,"topic");
 
         // Test the subscriber
         persistentBroker.publish(testEvent);

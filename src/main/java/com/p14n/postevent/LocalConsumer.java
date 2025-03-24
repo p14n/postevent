@@ -1,26 +1,34 @@
 package com.p14n.postevent;
 
+import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
+import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.data.PostEventConfig;
+import com.p14n.postevent.db.DatabaseSetup;
 import com.p14n.postevent.debezium.DebeziumServer;
 import static com.p14n.postevent.debezium.Functions.changeEventToEvent;
 import io.debezium.engine.ChangeEvent;
 import java.io.IOException;
+import java.util.Properties;
 import java.util.function.Consumer;
 
-public class LocalConsumer {
+public class LocalConsumer<OutT> implements AutoCloseable {
     private final DebeziumServer debezium;
-    private final MessageBroker<Event> broker;
+    private final MessageBroker<Event,OutT> broker;
     private final PostEventConfig config;
+    private final DatabaseSetup db;
 
-    public LocalConsumer(PostEventConfig config, MessageBroker<Event> broker) {
+    public LocalConsumer(PostEventConfig config, MessageBroker<Event,OutT> broker) {
         this.config = config;
         this.broker = broker;
+        this.db = new DatabaseSetup(config);
         this.debezium = new DebeziumServer();
     }
 
     public void start() throws IOException, InterruptedException {
+        db.setupAll(config.name());
         Consumer<ChangeEvent<String, String>> consumer = record -> {
             try {
                 Event event = changeEventToEvent(record);
@@ -36,5 +44,10 @@ public class LocalConsumer {
 
     public void stop() throws IOException {
         debezium.stop();
+    }
+
+    @Override
+    public void close() throws IOException {
+        stop();
     }
 }

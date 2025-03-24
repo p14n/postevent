@@ -30,8 +30,6 @@ class PublisherTest {
 
     private EmbeddedPostgres postgres;
     private Connection conn;
-    private Publisher publisher;
-    private DatabaseSetup dbSetup;
 
     @BeforeEach
     void setUp() throws IOException, SQLException {
@@ -40,10 +38,9 @@ class PublisherTest {
                 .start();
 
         conn = postgres.getPostgresDatabase().getConnection();
-        publisher = new Publisher();
 
         // Initialize and use DatabaseSetup
-        dbSetup = new DatabaseSetup(
+        var dbSetup = new DatabaseSetup(
                 postgres.getJdbcUrl("postgres", "postgres"),
                 "postgres",
                 "postgres");
@@ -67,7 +64,7 @@ class PublisherTest {
         Event event = TestUtil.createTestEvent(0);
 
         // When
-        publisher.publish(event, conn, "test_topic");
+        Publisher.publish(event, conn, "test_topic");
 
         // Then
         verifyEventInDatabase(conn, event, "test_topic");
@@ -90,14 +87,14 @@ class PublisherTest {
     void shouldThrowExceptionForEmptyTopic() {
         Event event = TestUtil.createTestEvent(0);
 
-        assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, ""));
+        assertThrows(IllegalArgumentException.class, () -> Publisher.publish(event, conn, ""));
     }
 
     @Test
     void shouldThrowExceptionForNullTopic() {
         Event event = TestUtil.createTestEvent(0);
 
-        assertThrows(IllegalArgumentException.class, () -> publisher.publish(event, conn, null));
+        assertThrows(IllegalArgumentException.class, () -> Publisher.publish(event, conn, null));
     }
 
     @Test
@@ -106,7 +103,7 @@ class PublisherTest {
         Event event = TestUtil.createTestEvent(0);
 
         // When
-        publisher.publish(event, conn, "test_topic");
+        Publisher.publish(event, conn, "test_topic");
 
         // Then
         verifyEventInDatabase(conn, event, "test_topic");
@@ -128,7 +125,7 @@ class PublisherTest {
                 largeData);
 
         // When
-        publisher.publish(event, conn, "test_topic");
+        Publisher.publish(event, conn, "test_topic");
 
         // Then
         verifyEventInDatabase(conn, event, "test_topic");
@@ -148,7 +145,7 @@ class PublisherTest {
         conn.close();
 
         // When/Then
-        assertThrows(SQLException.class, () -> publisher.publish(event, conn, "test_topic"));
+        assertThrows(SQLException.class, () -> Publisher.publish(event, conn, "test_topic"));
     }
 
     @Test
@@ -164,7 +161,7 @@ class PublisherTest {
                 "test-data".getBytes());
 
         // When/Then
-        assertThrows(SQLException.class, () -> publisher.publish(event, conn, "non_existent_topic"));
+        assertThrows(SQLException.class, () -> Publisher.publish(event, conn, "non_existent_topic"));
     }
 
     @Test
@@ -188,7 +185,7 @@ class PublisherTest {
                             "test-schema",
                             "test-subject",
                             "test-data".getBytes());
-                    publisher.publish(event, conn, "test_topic");
+                    Publisher.publish(event, conn, "test_topic");
                     latch.countDown();
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
