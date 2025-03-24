@@ -11,9 +11,12 @@ import com.p14n.postevent.broker.grpc.MessageBrokerGrpcServer;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
+import com.p14n.postevent.catchup.UnprocessedSubmitter;
 import com.p14n.postevent.catchup.grpc.CatchupGrpcClient;
 import com.p14n.postevent.catchup.grpc.CatchupGrpcServer;
 import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.data.UnprocessedEventFinder;
+
 import io.grpc.ServerBuilder;
 
 import javax.sql.DataSource;
@@ -59,6 +62,7 @@ public class RemoteConsumerExample {
             client.subscribe(pb);
 
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
+            seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
 
             tb.subscribe(message -> {
                 System.err.println("********* Message received *************");

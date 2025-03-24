@@ -37,9 +37,9 @@ Create a catchup mechanism
 Create a processor
 - [x] Verifies that there are no earlier unprocessed events for the same subject
 
-- [ ] Hook up catchup mechanism
+- [X] Hook up catchup mechanism
 - [ ] Make server handle multiple topics
-- [ ] Make threading mechanism pluggable
+- [X] Make threading mechanism pluggable
 - [ ] DST tests
 
 DB Debezium DONE
