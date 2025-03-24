@@ -1,79 +1,41 @@
 package com.p14n.postevent.example;
 
-import com.p14n.postevent.LocalConsumer;
+import com.p14n.postevent.ConsumerClient;
+import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
-import com.p14n.postevent.broker.EventMessageBroker;
-import com.p14n.postevent.broker.SystemEventBroker;
-import com.p14n.postevent.broker.TransactionalBroker;
-import com.p14n.postevent.broker.grpc.MessageBrokerGrpcClient;
-import com.p14n.postevent.broker.grpc.MessageBrokerGrpcServer;
-import com.p14n.postevent.catchup.CatchupServer;
-import com.p14n.postevent.catchup.CatchupService;
-import com.p14n.postevent.catchup.PersistentBroker;
-import com.p14n.postevent.catchup.UnprocessedSubmitter;
-import com.p14n.postevent.catchup.grpc.CatchupGrpcClient;
-import com.p14n.postevent.catchup.grpc.CatchupGrpcServer;
 import com.p14n.postevent.data.ConfigData;
-import com.p14n.postevent.data.UnprocessedEventFinder;
-
-import io.grpc.ServerBuilder;
 
 import javax.sql.DataSource;
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class RemoteConsumerExample {
 
     private static void constructServer(DataSource ds, ConfigData cfg, CountDownLatch l, int port) {
 
-        try (var mb = new EventMessageBroker();
-                var lc = new LocalConsumer<>(cfg, mb)) {
-
-            var grpcServer = new MessageBrokerGrpcServer(mb);
-            var catchupServer = new CatchupServer(ds);
-            var catchupService = new CatchupGrpcServer.CatchupServiceImpl(catchupServer);
-            var server = ServerBuilder.forPort(port)
-                    .addService(grpcServer)
-                    .addService(catchupService)
-                    .permitKeepAliveTime(1, TimeUnit.HOURS)
-                    .permitKeepAliveWithoutCalls(true)
-                    .build()
-                    .start();
-
-            lc.start();
+        try (ConsumerServer cs = new ConsumerServer(ds, cfg)) {
+            cs.start(port);
             l.await();
-            server.shutdownNow();
         } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 
     private static void constructClient(DataSource ds, CountDownLatch l, int port, String topic) {
 
-        try (var tb = new TransactionalBroker(ds);
-                var seb = new SystemEventBroker();
-                var pb = new PersistentBroker<>(tb, ds, seb);
-                var client = new MessageBrokerGrpcClient("localhost", port, topic);
-                var catchupClient = new CatchupGrpcClient("localhost", port)) {
-
-            client.subscribe(pb);
-
-            seb.subscribe(new CatchupService(ds, catchupClient, seb));
-            seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
-
-            tb.subscribe(message -> {
+        try (ConsumerClient client = new ConsumerClient(topic)) {
+            client.start(ds, "localhost", port);
+            client.subscribe(message -> {
                 System.err.println("********* Message received *************");
                 l.countDown();
             });
-
             l.await();
-
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
     }
 
     public static void main(String[] args) throws Exception {
@@ -95,6 +57,8 @@ public class RemoteConsumerExample {
             CountDownLatch serverLatch = new CountDownLatch(1);
 
             es.execute(() -> constructServer(ds, cfg, serverLatch, port));
+
+            Thread.sleep(2000);
 
             es.execute(() -> constructClient(ds, serverLatch, port, cfg.name()));
 
