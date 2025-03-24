@@ -89,7 +89,8 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
         EventResponse.Builder builder = EventResponse.newBuilder()
                 .setId(event.id())
                 .setSource(event.source())
-                .setType(event.type());
+                .setType(event.type())
+                .setIdn(event.idn());
 
         if (event.datacontenttype() != null) {
             builder.setDataContentType(event.datacontenttype());
@@ -111,7 +112,9 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             builder.setData(com.google.protobuf.ByteString.copyFrom(event.data()));
         }
 
-        builder.setIdn(event.idn());
+        if(event.topic()!=null){
+            builder.setTopic(event.topic());
+        }
 
         return builder.build();
     }
