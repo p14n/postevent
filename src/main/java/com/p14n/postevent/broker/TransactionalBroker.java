@@ -5,7 +5,6 @@ import com.p14n.postevent.processor.OrderedProcessor;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.util.function.BiFunction;
 
 public class TransactionalBroker extends DefaultMessageBroker<Event, TransactionalEvent> {
     private final DataSource ds;
