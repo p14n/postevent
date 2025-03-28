@@ -6,9 +6,14 @@ import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.example.ExampleUtil;
+
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import net.jqwik.api.*;
+import net.jqwik.api.lifecycle.AfterProperty;
+import net.jqwik.api.lifecycle.BeforeProperty;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 import java.util.Random;
@@ -21,127 +26,124 @@ import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DeterministicConsumerTest {
+
     private static final Logger LOGGER = Logger.getLogger(DeterministicConsumerTest.class.getName());
     private static final int PORT = 50052;
     private static final String TOPIC = "test_topic";
 
-    private Random random;
-    private TestAsyncExecutor executor;
-    private ConsumerServer server;
-    private ConsumerClient client;
-    private DataSource dataSource;
-    private ConfigData config;
-    private CountDownLatch eventsLatch;
+    @Property(tries = 2)
+    void testDeterministicEventDelivery(@ForAll("randomSeeds") long seed) throws Exception {
 
-    @BeforeEach
-    void setUp() throws Exception {
-        // Initialize with a fixed seed for reproducibility
-        random = new Random(42);
-        executor = new TestAsyncExecutor(random);
+        try (var pg = ExampleUtil.embeddedPostgres();) {
 
-        // Setup PostgreSQL
-        var pg = ExampleUtil.embeddedPostgres();
-        dataSource = pg.getPostgresDatabase();
+            var dataSource = pg.getPostgresDatabase();
 
-        config = new ConfigData(
-                TOPIC,
-                TOPIC,
-                "127.0.0.1",
-                pg.getPort(),
-                "postgres",
-                "postgres",
-                "postgres");
+            var config = new ConfigData(
+                    TOPIC,
+                    TOPIC,
+                    "127.0.0.1",
+                    pg.getPort(),
+                    "postgres",
+                    "postgres",
+                    "postgres");
 
-        // Start server
-        server = new ConsumerServer(dataSource, config, executor);
-        server.start(PORT);
+            var executor = new TestAsyncExecutor();
 
-        // Start client
-        client = new ConsumerClient(TOPIC, executor);
-        client.start(dataSource, "localhost", PORT);
-    }
+            // Start server
+            var server = new ConsumerServer(dataSource, config, executor);
 
-    @AfterEach
-    void tearDown() throws Exception {
-        if (client != null) {
-            client.close();
-        }
-        if (server != null) {
-            server.close();
-        }
-        if (executor != null) {
-            executor.close();
-        }
-    }
+            server.start(PORT);
 
-    @Test
-    void testDeterministicEventDelivery() throws Exception {
+            // Start client
+            var client = new ConsumerClient(TOPIC, executor);
+            client.start(dataSource, "localhost", PORT);
 
-        var receivedEventIdns = new CopyOnWriteArrayList<Long>();
-        Set<String> receivedEventIds = ConcurrentHashMap.newKeySet();
-        Set<String> publishedEventIds = ConcurrentHashMap.newKeySet();
+            LOGGER.info("Testing with seed: " + seed);
+            Random random = new Random(seed);
 
-        // Generate random number of events (1-100)
-        int numberOfEvents = random.nextInt(100) + 1;
-        eventsLatch = new CountDownLatch(numberOfEvents);
-        LOGGER.info("Testing with " + numberOfEvents + " events");
+            var receivedEventIdns = new CopyOnWriteArrayList<Long>();
+            Set<String> receivedEventIds = ConcurrentHashMap.newKeySet();
+            Set<String> publishedEventIds = ConcurrentHashMap.newKeySet();
 
-        // Setup client subscriber
-        client.subscribe((TransactionalEvent event) -> {
-            var eventIdn = event.event().idn();
-            var eventId = event.event().id();
-            LOGGER.info("Received event: " + eventId);
-            receivedEventIds.add(eventId);
-            receivedEventIdns.add(eventIdn);
-            eventsLatch.countDown();
-        });
+            // Generate random number of events (1-100)
+            int numberOfEvents = random.nextInt(100) + 1;
+            var eventsLatch = new CountDownLatch(numberOfEvents);
+            LOGGER.info("Testing with " + numberOfEvents + " events");
 
-        // Schedule random event publications
-        for (int i = 0; i < numberOfEvents; i++) {
-            final int eventNumber = i;
-            executor.submit(() -> {
-                try {
-                    var event = TestUtil.createTestEvent(eventNumber);
-                    publishedEventIds.add(event.id());
-                    Publisher.publish(event, dataSource, TOPIC);
-                    LOGGER.info("Published event: " + event.id());
-                    return event.id();
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to publish event", e);
-                }
+            // Setup client subscriber
+            client.subscribe((TransactionalEvent event) -> {
+                var eventIdn = event.event().idn();
+                var eventId = event.event().id();
+                receivedEventIds.add(eventId);
+                LOGGER.info("Received event: " + eventId + " " + receivedEventIds.size());
+                receivedEventIdns.add(eventIdn);
+                eventsLatch.countDown();
             });
+
+            // Schedule random event publications
+            for (int i = 0; i < numberOfEvents; i++) {
+                final int eventNumber = i;
+                executor.submit(() -> {
+                    try {
+                        var event = TestUtil.createTestEvent(eventNumber);
+                        publishedEventIds.add(event.id());
+                        Publisher.publish(event, dataSource, TOPIC);
+                        LOGGER.info("Published event: " + event.id());
+                        return event.id();
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to publish event", e);
+                    }
+                });
+            }
+
+            // Calculate maximum ticks allowed
+            int maxTicks = (numberOfEvents * 10) + 50;
+            int tickCount = 0;
+
+            // Tick until all events are received or max ticks reached
+            while (tickCount < maxTicks && receivedEventIds.size() < numberOfEvents) {
+                executor.tick(random);
+                Thread.sleep(10);
+                tickCount++;
+                LOGGER.info("Tick " + tickCount + ": Received " + receivedEventIds.size() + " of " + numberOfEvents
+                        + " events");
+            }
+            Thread.sleep(2000);
+
+            LOGGER.info("Test completed in " + tickCount + " ticks");
+            LOGGER.info("Published events: " + publishedEventIds.size());
+            LOGGER.info("Received events: " + receivedEventIds.size());
+            LOGGER.info("Received event IDs: " + receivedEventIdns);
+
+            // Assertions
+            assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
+            assertEquals(numberOfEvents, publishedEventIds.size(),
+                    "Not all events were published");
+            assertEquals(numberOfEvents, receivedEventIds.size(),
+                    "Not all events were received");
+            assertTrue(receivedEventIds.containsAll(publishedEventIds),
+                    "Not all published events were received");
+            for (int i = 0; i < receivedEventIdns.size() - 1; i++) {
+                assertTrue(receivedEventIdns.get(i) < receivedEventIdns.get(i + 1),
+                        "Events were not received in order");
+            }
+            close(server);
+            close(client);
+            close(executor);
         }
+    }
 
-        // Calculate maximum ticks allowed
-        int maxTicks = numberOfEvents * 10;
-        int tickCount = 0;
-
-        // Tick until all events are received or max ticks reached
-        while (tickCount < maxTicks && receivedEventIds.size() < numberOfEvents) {
-            executor.tick();
-            Thread.sleep(10);
-            tickCount++;
-            LOGGER.info("Tick " + tickCount + ": Received " + receivedEventIds.size() + " of " + numberOfEvents
-                    + " events");
+    private void close(AutoCloseable c) {
+        try {
+            if (c != null)
+                c.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 
-        LOGGER.info("Test completed in " + tickCount + " ticks");
-        LOGGER.info("Published events: " + publishedEventIds.size());
-        LOGGER.info("Received events: " + receivedEventIds.size());
-        LOGGER.info("Received event IDs: " + receivedEventIdns);
-
-        // Assertions
-        // assertTrue(tickCount < maxTicks, "Test did not complete within maximum
-        // ticks(" + maxTicks + ")");
-        assertEquals(numberOfEvents, publishedEventIds.size(),
-                "Not all events were published");
-        assertEquals(numberOfEvents, receivedEventIds.size(),
-                "Not all events were received");
-        assertTrue(receivedEventIds.containsAll(publishedEventIds),
-                "Not all published events were received");
-        for (int i = 0; i < receivedEventIdns.size() - 1; i++) {
-            assertTrue(receivedEventIdns.get(i) < receivedEventIdns.get(i + 1),
-                    "Events were not received in order");
-        }
+    @Provide
+    Arbitrary<Long> randomSeeds() {
+        return Arbitraries.longs().between(0, Long.MAX_VALUE);
     }
 }

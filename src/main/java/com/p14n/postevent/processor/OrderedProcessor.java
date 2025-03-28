@@ -122,7 +122,8 @@ public class OrderedProcessor {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     int hwm = rs.getInt(1);
-                    return hwm >= event.idn();
+                    System.err.println("HWM: " + hwm + " IDN: " + event.idn());
+                    return hwm >= event.idn() - 1;
                 }
                 return false;
             }

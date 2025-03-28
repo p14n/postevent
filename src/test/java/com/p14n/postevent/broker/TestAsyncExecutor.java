@@ -4,13 +4,8 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class TestAsyncExecutor implements AsyncExecutor {
-    private final Random random;
     private final List<Task> pendingTasks = new CopyOnWriteArrayList<>();
     private boolean isShutdown = false;
-
-    public TestAsyncExecutor(Random random) {
-        this.random = random;
-    }
 
     private static class Task {
         final Runnable runnable;
@@ -175,7 +170,7 @@ public class TestAsyncExecutor implements AsyncExecutor {
     }
 
     @SuppressWarnings("unchecked")
-    public void tick() {
+    public void tick(Random random) {
         System.err.println("TICK ? " + pendingTasks.size());
         if (pendingTasks.isEmpty()) {
             return;
