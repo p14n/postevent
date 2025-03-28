@@ -1,7 +1,27 @@
 # postevent
-A library to publish and receive events using postgres and grpc
+This library implements an event publishing and consumption system using PostgreSQL and gRPC. Here are its key features:
 
-## features
+Event Publishing:
+* Publishes events following the [CloudEvents](https://github.com/cloudevents/spec/blob/main/cloudevents/spec.md) specification
+* Persists events in PostgreSQL
+* Uses Debezium for change data capture from PostgreSQL
+
+Event Consumption:
+* Supports both in-process and remote consumers (via gRPC)
+* Guarantees ordered event delivery by subject
+* Provides catch-up mechanism for missed events
+* Ensures new consumers receive all historical events on first connect
+
+Architecture Components:
+* Local Consumer: Handles in-process event consumption
+* Remote Consumer: Enables distributed event consumption via gRPC
+* Persistent Consumer: Stores events in database before processing
+* Catchup Mechanism: Handles gaps in event sequences
+* Message Brokers: Manages event distribution
+
+The project uses modern Java (JDK 21), Gradle for build management, and includes comprehensive testing with JUnit and embedded PostgreSQL. It's designed for systems requiring reliable event processing with persistence and distributed capabilities.
+
+## Features
 * Publish events based on the [cloudevents spec](https://github.com/cloudevents/spec/blob/main/cloudevents/spec.md)
   * Events are persisted in the source database
 * Connect consumers either in-process or from a remote node (via grpc)

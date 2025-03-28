@@ -2,6 +2,7 @@ package com.p14n.postevent.debezium;
 
 import java.util.Properties;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.p14n.postevent.data.PostEventConfig;
 import io.debezium.engine.DebeziumEngine;
 import io.debezium.engine.format.Json;
@@ -71,7 +72,7 @@ public class DebeziumServer {
         private DebeziumEngine<ChangeEvent<String, String>> engine;
 
         public void start(PostEventConfig cfg,
-                          Consumer<ChangeEvent<String, String>> consumer) throws IOException, InterruptedException {
+                        Consumer<ChangeEvent<String, String>> consumer) throws IOException, InterruptedException {
                 if (consumer == null) {
                         throw new IllegalStateException("Change event consumer must be set before starting the engine");
                 }
@@ -95,7 +96,8 @@ public class DebeziumServer {
                                                                 cfg.dbName()))
                                 .notifying(consumer)
                                 .build();
-                executor = Executors.newSingleThreadExecutor();
+                executor = Executors.newSingleThreadExecutor(
+                                new ThreadFactoryBuilder().setNameFormat("post-event-debezium-%d").build());
                 executor.execute(engine);
                 if (!started.await(cfg.startupTimeoutSeconds(), TimeUnit.SECONDS)) {
                         throw new IllegalStateException("Debezium engine failed to start within 30 seconds");
@@ -104,13 +106,16 @@ public class DebeziumServer {
         }
 
         public void stop() throws IOException {
+                if (executor != null) {
+                        executor.shutdown();
+                }
                 if (engine != null) {
                         engine.close();
                 }
                 if (executor != null) {
                         executor.shutdownNow();
                         try {
-                                if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                                         logger.warn("Executor did not terminate in the specified time.");
                                 }
                         } catch (InterruptedException e) {
@@ -118,6 +123,7 @@ public class DebeziumServer {
                                 logger.error("Shutdown interrupted", e);
                         }
                 }
+
         }
 
 }

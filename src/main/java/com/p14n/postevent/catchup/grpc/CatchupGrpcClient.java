@@ -20,9 +20,13 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
     private final CatchupServiceGrpc.CatchupServiceBlockingStub blockingStub;
 
     public CatchupGrpcClient(String host, int port) {
-        this.channel = ManagedChannelBuilder.forAddress(host, port)
+        this(ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
-                .build();
+                .build());
+    }
+
+    public CatchupGrpcClient(ManagedChannel channel) {
+        this.channel = channel;
         this.blockingStub = CatchupServiceGrpc.newBlockingStub(channel);
     }
 
@@ -48,7 +52,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
 
         List<Event> events = new ArrayList<>();
         for (com.p14n.postevent.catchup.grpc.Event grpcEvent : response.getEventsList()) {
-            events.add(convertFromGrpcEvent(grpcEvent,topic));
+            events.add(convertFromGrpcEvent(grpcEvent, topic));
         }
 
         LOGGER.info(String.format("Fetched %d events from topic %s", events.size(), topic));
@@ -77,11 +81,11 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
     }
 
     @Override
-    public void close()  {
+    public void close() {
         try {
             channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE,"Failed to close",e);
+            LOGGER.log(Level.SEVERE, "Failed to close", e);
         }
     }
 }
