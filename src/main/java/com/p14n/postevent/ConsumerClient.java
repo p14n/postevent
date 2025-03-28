@@ -4,6 +4,7 @@ import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.broker.DefaultExecutor;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.SystemEvent;
 import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.broker.TransactionalBroker;
 import com.p14n.postevent.broker.TransactionalEvent;
@@ -51,7 +52,7 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
         if (tb != null) {
             throw new IllegalStateException("Already started");
         }
-        tb = new TransactionalBroker(ds);
+        tb = new TransactionalBroker(ds, asyncExecutor);
         var seb = new SystemEventBroker(asyncExecutor);
         var pb = new PersistentBroker<>(tb, ds, seb);
         var client = new MessageBrokerGrpcClient(channel, topic);
@@ -60,6 +61,7 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
 
         seb.subscribe(new CatchupService(ds, catchupClient, seb));
         seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
+        asyncExecutor.scheduleAtFixedRate(() -> seb.publish(SystemEvent.UnprocessedCheckRequired), 30, 30, TimeUnit.SECONDS);
 
         closeables = List.of(client, catchupClient, pb, seb, tb);
 

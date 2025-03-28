@@ -255,3 +255,7 @@ replay_pid*
 ### clojure ###
 .clj-kondo/.cache
 .lsp
+
+.DS_Store
+bin
+.jqwik-database

@@ -4,21 +4,22 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class DefaultMessageBroker<InT,OutT> implements MessageBroker<InT,OutT>,AutoCloseable {
+public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<InT, OutT>, AutoCloseable {
 
     protected final CopyOnWriteArraySet<MessageSubscriber<OutT>> subscribers = new CopyOnWriteArraySet<>();
     protected final AtomicBoolean closed = new AtomicBoolean(false);
 
     private final AsyncExecutor asyncExecutor;
 
-    public DefaultMessageBroker(){
+    public DefaultMessageBroker() {
         this(new DefaultExecutor(2));
     }
+
     public DefaultMessageBroker(AsyncExecutor asyncExecutor) {
         this.asyncExecutor = asyncExecutor;
     }
 
-    protected boolean canProcess(InT message){
+    protected boolean canProcess(InT message) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
@@ -38,11 +39,14 @@ public abstract class DefaultMessageBroker<InT,OutT> implements MessageBroker<In
     @Override
     public void publish(InT message) {
 
-        if(!canProcess(message)){
+        System.err.println("DMB got event " + message);
+        if (!canProcess(message)) {
             return;
         }
         // Deliver to all subscribers
         for (MessageSubscriber<OutT> subscriber : subscribers) {
+            System.err.println("TO ASYNC " + message);
+
             asyncExecutor.submit(() -> {
                 try {
                     subscriber.onMessage(convert(message));
