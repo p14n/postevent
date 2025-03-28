@@ -4,6 +4,11 @@ plugins {
     id 'com.google.protobuf' version '0.9.2'
 }
 
+compileJava {
+    sourceCompatibility = 21
+    targetCompatibility = 21
+}
+
 group = 'com.p14n'
 version = '1.0-SNAPSHOT'
 

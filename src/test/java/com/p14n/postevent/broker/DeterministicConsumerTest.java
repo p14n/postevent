@@ -58,7 +58,7 @@ class DeterministicConsumerTest {
             var client = new ConsumerClient(TOPIC, executor);
             client.start(dataSource, "localhost", PORT);
 
-            LOGGER.info("Testing with seed: " + seed);
+            LOGGER.info("Testing with seed: " + seed + 1);
             Random random = new Random(seed);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
@@ -95,7 +95,7 @@ class DeterministicConsumerTest {
                     }
                 });
             }
-
+            //
             // Calculate maximum ticks allowed
             int maxTicks = (numberOfEvents * 10) + 50;
             int tickCount = 0;
