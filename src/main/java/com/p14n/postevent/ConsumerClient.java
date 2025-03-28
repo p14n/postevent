@@ -51,7 +51,7 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
         if (tb != null) {
             throw new IllegalStateException("Already started");
         }
-        tb = new TransactionalBroker(ds);
+        tb = new TransactionalBroker(ds, asyncExecutor);
         var seb = new SystemEventBroker(asyncExecutor);
         var pb = new PersistentBroker<>(tb, ds, seb);
         var client = new MessageBrokerGrpcClient(channel, topic);

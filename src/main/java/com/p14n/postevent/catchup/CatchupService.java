@@ -11,6 +11,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.p14n.postevent.db.SQL;
 import org.slf4j.Logger;
@@ -108,12 +110,13 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
     }
 
     private void initializeHwm(Connection connection, String topicName) throws SQLException {
-        String sql = "INSERT INTO postevent.contiguous_hwm (topic_name, hwm) VALUES (?, 0)";
+        String sql = "INSERT INTO postevent.contiguous_hwm (topic_name, hwm) VALUES (?, 0) ON CONFLICT DO NOTHING";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, topicName);
             stmt.executeUpdate();
         }
+        getCurrentHwm(connection, topicName);
     }
 
     private long findGapEnd(Connection connection, long currentHwm) throws SQLException {
@@ -170,10 +173,27 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         }
     }
 
+    private AtomicInteger signals = new AtomicInteger(0);
+    private AtomicBoolean running = new AtomicBoolean(false);
+
     @Override
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
-            catchup(message.topic);
+            signals.incrementAndGet();
+            if (running.get()) {
+                return;
+            }
+            synchronized (running) {
+                if (!running.get()) {
+                    running.set(true);
+                    signals.set(0);
+                    catchup(message.topic);
+                    running.set(false);
+                    if (signals.get() > 0) {
+                        onMessage(message);
+                    }
+                }
+            }
         }
     }
 

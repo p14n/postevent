@@ -17,7 +17,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
 
     private final MessageBroker<Event, OutT> targetBroker;
     private final DataSource dataSource;
-  //  private final String topicName;
+    // private final String topicName;
     private final SystemEventBroker systemEventBroker;
 
     public PersistentBroker(MessageBroker<Event, OutT> targetBroker,
@@ -39,11 +39,12 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
                 SQL.setTimeIDNAndTopic(stmt, event);
                 stmt.executeUpdate();
             }
+            int updates = 0;
             try (PreparedStatement stmt = conn.prepareStatement(UPDATE_HWM_SQL)) {
                 stmt.setLong(1, event.idn());
                 stmt.setString(2, event.topic());
                 stmt.setLong(3, event.idn() - 1);
-                int updates = stmt.executeUpdate();
+                updates = stmt.executeUpdate();
                 if (updates < 1)
                     systemEventBroker
                             .publish(SystemEvent.CatchupRequired.withTopic(event.topic()));
@@ -52,7 +53,9 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
-            targetBroker.publish(event);
+            System.err.println("PB got event " + event.id());
+            if (updates > 0)
+                targetBroker.publish(event);
 
         } catch (SQLException e) {
             SQL.handleSQLException(e, conn);

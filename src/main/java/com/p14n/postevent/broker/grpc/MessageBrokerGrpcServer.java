@@ -14,9 +14,9 @@ import java.util.logging.Logger;
 
 public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBrokerServiceImplBase {
     private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcServer.class.getName());
-    private final MessageBroker<Event,Event> messageBroker;
+    private final MessageBroker<Event, Event> messageBroker;
 
-    public MessageBrokerGrpcServer(MessageBroker<Event,Event> messageBroker) {
+    public MessageBrokerGrpcServer(MessageBroker<Event, Event> messageBroker) {
         this.messageBroker = messageBroker;
     }
 
@@ -41,17 +41,20 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
                 @Override
                 public void onMessage(Event event) {
                     // Skip if the stream has been cancelled
+                    LOGGER.info("Received message for topic: " + topic);
                     if (cancelled.get()) {
                         return;
                     }
-                    try {
-                        // Convert Event to EventResponse
-                        EventResponse response = convertToGrpcEvent(event);
-                        responseObserver.onNext(response);
-                    } catch (Exception e) {
-                        LOGGER.log(Level.SEVERE, "Error sending event to client", e);
-                        if (!cancelled.getAndSet(true)) {
-                            errorResponse(responseObserver, "Error processing event", e);
+                    synchronized (responseObserver) {
+                        try {
+                            // Convert Event to EventResponse
+                            EventResponse response = convertToGrpcEvent(event);
+                            responseObserver.onNext(response);
+                        } catch (Exception e) {
+                            LOGGER.log(Level.SEVERE, "Error sending event to client", e);
+                            if (!cancelled.getAndSet(true)) {
+                                errorResponse(responseObserver, "Error processing event", e);
+                            }
                         }
                     }
                 }
@@ -112,7 +115,7 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             builder.setData(com.google.protobuf.ByteString.copyFrom(event.data()));
         }
 
-        if(event.topic()!=null){
+        if (event.topic() != null) {
             builder.setTopic(event.topic());
         }
 

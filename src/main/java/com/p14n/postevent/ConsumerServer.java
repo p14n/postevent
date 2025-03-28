@@ -40,7 +40,7 @@ public class ConsumerServer implements AutoCloseable {
     }
 
     public void start(ServerBuilder<?> sb) throws IOException, InterruptedException {
-        var mb = new EventMessageBroker();
+        var mb = new EventMessageBroker(asyncExecutor);
         var lc = new LocalConsumer<>(cfg, mb);
         var grpcServer = new MessageBrokerGrpcServer(mb);
         var catchupServer = new CatchupServer(ds);

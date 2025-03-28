@@ -44,13 +44,20 @@ public class OrderedProcessor {
 
             // Check if there are any unprocessed events with the same subject and lower idn
             if (hasUnprocessedPriorEvents(connection, event)) {
-                LOGGER.info("Skipping event " + event.id() + " as there are unprocessed prior events");
+                LOGGER.info("Skipping event " + event.id() + " (idn: " + event.idn() + ")"
+                        + " as there are unprocessed prior events");
                 return false;
             }
 
             // Try to update the status to 'p' (processed)
             if (!updateEventStatus(connection, event)) {
-                LOGGER.info("Skipping event " + event.id() + " as it's already being processed");
+                LOGGER.info("Skipping event " + event.id() + " (idn: " + event.idn() + ")"
+                        + " as it's already being processed");
+                return false;
+            }
+            if (!previousEventExists(connection, event)) {
+                LOGGER.info("Ignoring event " + event.id() + " (idn: " + event.idn() + ")"
+                        + " as the previous event has not reached the client");
                 return false;
             }
 
@@ -59,7 +66,7 @@ public class OrderedProcessor {
 
             if (success) {
                 connection.commit();
-                LOGGER.info("Successfully processed event " + event.id());
+                LOGGER.info("Successfully processed event " + event.idn());
                 return true;
             } else {
                 return false; // Already rolled back in processEventWithFunction
@@ -92,6 +99,30 @@ public class OrderedProcessor {
                 if (rs.next()) {
                     int count = rs.getInt(1);
                     return count > 0;
+                }
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Checks that the previous idn has reached the client
+     *
+     * @param connection Database connection
+     * @param event      Current event
+     * @return true if the previous event exists, false otherwise
+     * @throws SQLException if a database error occurs
+     */
+    private boolean previousEventExists(Connection connection, Event event) throws SQLException {
+        String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE topic_name = ?";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, event.topic());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int hwm = rs.getInt(1);
+                    return hwm >= event.idn();
                 }
                 return false;
             }

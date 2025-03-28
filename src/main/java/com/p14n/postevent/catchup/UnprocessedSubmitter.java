@@ -12,20 +12,21 @@ import java.sql.SQLException;
 
 public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
 
-    private final MessageBroker<Event,?> targetBroker;
+    private final MessageBroker<Event, ?> targetBroker;
     private final DataSource ds;
     private final UnprocessedEventFinder unprocessedEventFinder;
 
-    public UnprocessedSubmitter(DataSource ds, UnprocessedEventFinder unprocessedEventFinder,MessageBroker<Event, ?> targetBroker) {
+    public UnprocessedSubmitter(DataSource ds, UnprocessedEventFinder unprocessedEventFinder,
+            MessageBroker<Event, ?> targetBroker) {
         this.targetBroker = targetBroker;
         this.ds = ds;
         this.unprocessedEventFinder = unprocessedEventFinder;
     }
 
-    private void resubmit(){
-        try(Connection c = ds.getConnection()) {
+    private void resubmit() {
+        try (Connection c = ds.getConnection()) {
             var events = unprocessedEventFinder.findUnprocessedEvents(c);
-            for(var e:events){
+            for (var e : events) {
                 targetBroker.publish(e);
             }
         } catch (SQLException e) {
@@ -35,8 +36,9 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
 
     @Override
     public void onMessage(SystemEvent message) {
-        if(message == SystemEvent.UnprocessedCheckRequired){
-            resubmit();;
+        if (message == SystemEvent.UnprocessedCheckRequired) {
+            resubmit();
+            ;
         }
     }
 
