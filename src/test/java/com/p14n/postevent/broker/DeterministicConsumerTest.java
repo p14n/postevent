@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -58,7 +59,7 @@ class DeterministicConsumerTest {
             var client = new ConsumerClient(TOPIC, executor);
             client.start(dataSource, "localhost", PORT);
 
-            LOGGER.info("Testing with seed: " + seed + 1);
+            LOGGER.info("Testing with seed: " + seed );
             Random random = new Random(seed);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
@@ -70,9 +71,14 @@ class DeterministicConsumerTest {
             var eventsLatch = new CountDownLatch(numberOfEvents);
             LOGGER.info("Testing with " + numberOfEvents + " events");
 
+            AtomicInteger failmod = new AtomicInteger(5);
+
             // Setup client subscriber
             client.subscribe((TransactionalEvent event) -> {
                 var eventIdn = event.event().idn();
+                if(eventIdn % failmod.getAndIncrement() == 0) {
+                    throw new RuntimeException("Fell over intentionally");
+                }
                 var eventId = event.event().id();
                 receivedEventIds.add(eventId);
                 LOGGER.info("Received event: " + eventId + " " + receivedEventIds.size());
@@ -102,7 +108,7 @@ class DeterministicConsumerTest {
 
             // Tick until all events are received or max ticks reached
             while (tickCount < maxTicks && receivedEventIds.size() < numberOfEvents) {
-                executor.tick(random);
+                executor.tick(random, tickCount % 5 == 0);
                 Thread.sleep(10);
                 tickCount++;
                 LOGGER.info("Tick " + tickCount + ": Received " + receivedEventIds.size() + " of " + numberOfEvents

@@ -5,6 +5,7 @@ import java.util.concurrent.*;
 
 public class TestAsyncExecutor implements AsyncExecutor {
     private final List<Task> pendingTasks = new CopyOnWriteArrayList<>();
+    private final List<Task> scheduledTasks = new CopyOnWriteArrayList<>();
     private boolean isShutdown = false;
 
     private static class Task {
@@ -112,12 +113,12 @@ public class TestAsyncExecutor implements AsyncExecutor {
 
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
-                return pendingTasks.removeIf(t -> t.future == this);
+                return scheduledTasks.removeIf(t -> t.future == this);
             }
 
             @Override
             public boolean isCancelled() {
-                return pendingTasks.stream().noneMatch(t -> t.future == this);
+                return scheduledTasks.stream().noneMatch(t -> t.future == this);
             }
 
             @Override
@@ -136,7 +137,7 @@ public class TestAsyncExecutor implements AsyncExecutor {
             }
         };
         Task task = new Task(command, initialDelay, period, unit, future);
-        pendingTasks.add(task);
+        scheduledTasks.add(task);
         return future;
     }
 
@@ -170,14 +171,15 @@ public class TestAsyncExecutor implements AsyncExecutor {
     }
 
     @SuppressWarnings("unchecked")
-    public void tick(Random random) {
+    public void tick(Random random, boolean includeScheduled) {
         System.err.println("TICK ? " + pendingTasks.size());
-        if (pendingTasks.isEmpty()) {
+        if (pendingTasks.isEmpty() || ( includeScheduled && scheduledTasks.isEmpty())) {
             return;
         }
 
         // Create a copy of tasks and shuffle them
         List<Task> tasksCopy = new ArrayList<>(pendingTasks);
+        if(includeScheduled) tasksCopy.addAll(scheduledTasks);
         Collections.shuffle(tasksCopy, random);
         Task task = tasksCopy.getFirst();
 

@@ -15,4 +15,14 @@ public class TestUtil {
                 "test-subject",
                 ("{\"value\":" + i + "}").getBytes());
     }
+    public static Event createTestEvent(int i,String subject) {
+        return Event.create(
+                UUID.randomUUID().toString(),
+                "test-source",
+                "test-type",
+                "application/json",
+                null,
+                subject,
+                ("{\"value\":" + i + "}").getBytes());
+    }
 }
