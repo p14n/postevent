@@ -53,7 +53,6 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
-            System.err.println("PB got event " + event.id());
             if (updates > 0)
                 targetBroker.publish(event);
 

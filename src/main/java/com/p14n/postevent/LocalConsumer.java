@@ -28,7 +28,6 @@ public class LocalConsumer<OutT> implements AutoCloseable {
         Consumer<ChangeEvent<String, String>> consumer = record -> {
             try {
                 Event event = changeEventToEvent(record);
-                System.err.println("LC got event " + event.id());
                 if (event != null) {
                     broker.publish(event);
                 }

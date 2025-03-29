@@ -56,7 +56,6 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     public void close() {
         for (var c : closeables) {
             try {
-                System.out.println("Closing " + c);
                 c.close();
             } catch (Exception e) {
                 e.printStackTrace();

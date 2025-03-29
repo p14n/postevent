@@ -10,6 +10,8 @@ import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -17,13 +19,14 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
 public class LocalConsumerExample {
+    private static final Logger logger = LoggerFactory.getLogger(LocalConsumerExample.class);
 
     public static void main(String[] args) throws IOException, InterruptedException, SQLException {
         CountDownLatch l = new CountDownLatch(1);
 
         try (var mb = new EventMessageBroker();
-             EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
-             var lc = new LocalConsumer<>(new ConfigData(
+                EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
+                var lc = new LocalConsumer<>(new ConfigData(
                         "local",
                         "topic",
                         "127.0.0.1",
@@ -33,7 +36,7 @@ public class LocalConsumerExample {
                         "postgres"), mb)) {
 
             mb.subscribe(message -> {
-                System.err.println("********* Message received *************");
+                logger.info("********* Message received *************");
                 l.countDown();
             });
 
