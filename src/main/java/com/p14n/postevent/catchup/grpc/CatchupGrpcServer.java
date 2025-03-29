@@ -5,16 +5,16 @@ import com.p14n.postevent.data.Event;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class CatchupGrpcServer {
-    private static final Logger LOGGER = Logger.getLogger(CatchupGrpcServer.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(CatchupGrpcServer.class);
 
     private final int port;
     private final Server server;
@@ -28,15 +28,15 @@ public class CatchupGrpcServer {
 
     public void start() throws IOException {
         server.start();
-        LOGGER.info("Server started, listening on port " + port);
+        logger.info("Server started, listening on port {}", port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOGGER.info("*** Shutting down gRPC server since JVM is shutting down");
+            logger.info("*** Shutting down gRPC server since JVM is shutting down");
             try {
                 CatchupGrpcServer.this.stop();
             } catch (InterruptedException e) {
-                LOGGER.log(Level.SEVERE, "Error shutting down server", e);
+                logger.error("Error shutting down server", e);
             }
-            LOGGER.info("*** Server shut down");
+            logger.info("*** Server shut down");
         }));
     }
 
@@ -79,7 +79,7 @@ public class CatchupGrpcServer {
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
-                LOGGER.log(Level.SEVERE, "Error fetching events", e);
+                logger.error("Error fetching events", e);
                 responseObserver.onError(e);
             }
         }
