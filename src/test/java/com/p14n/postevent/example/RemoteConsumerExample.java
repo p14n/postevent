@@ -7,6 +7,8 @@ import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
 
 import javax.sql.DataSource;
+
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 
@@ -48,7 +50,7 @@ public class RemoteConsumerExample {
             var ds = pg.getPostgresDatabase();
             var cfg = new ConfigData(
                     "local",
-                    "topic",
+                    Set.of("topic"),
                     "127.0.0.1",
                     pg.getPort(),
                     "postgres",
@@ -60,11 +62,11 @@ public class RemoteConsumerExample {
 
             Thread.sleep(2000);
 
-            es.execute(() -> constructClient(ds, serverLatch, port, cfg.topic()));
+            es.execute(() -> constructClient(ds, serverLatch, port, cfg.topics().iterator().next()));
 
             Thread.sleep(2000);
 
-            Publisher.publish(TestUtil.createTestEvent(1), ds, cfg.topic());
+            Publisher.publish(TestUtil.createTestEvent(1), ds, cfg.topics().iterator().next());
 
             serverLatch.await();
 

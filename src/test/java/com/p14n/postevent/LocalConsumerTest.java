@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.sql.Connection;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,7 +40,7 @@ class LocalConsumerTest {
         broker = new EventMessageBroker();
         PostEventConfig config = new ConfigData(
                 "test",
-                "test_topic", // renamed from "test"
+                Set.of("test_topic"), // renamed from "test"
                 "localhost",
                 pg.getPort(),
                 "postgres",

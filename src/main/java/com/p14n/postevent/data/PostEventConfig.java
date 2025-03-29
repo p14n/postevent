@@ -1,11 +1,12 @@
 package com.p14n.postevent.data;
 
 import java.util.Properties;
+import java.util.Set;
 
 public interface PostEventConfig {
     public String affinity();
 
-    public String topic(); // renamed from name()
+    public Set<String> topics(); // Changed from single topic to set
 
     public String dbHost();
 

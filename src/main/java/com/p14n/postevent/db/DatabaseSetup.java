@@ -13,6 +13,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Set;
 
 public class DatabaseSetup {
 
@@ -32,11 +33,16 @@ public class DatabaseSetup {
         this.password = password;
     }
 
-    public void setupAll(String topic) {
+    public DatabaseSetup setupAll(Set<String> topics) {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
         createContiguousHwmTableIfNotExists();
-        createTableIfNotExists(topic);
+        topics.stream().forEach(this::createTableIfNotExists);
+        return this;
+    }
+
+    public DatabaseSetup setupAll(String topic) {
+        return setupAll(Set.of(topic));
     }
 
     public DatabaseSetup createSchemaIfNotExists() {

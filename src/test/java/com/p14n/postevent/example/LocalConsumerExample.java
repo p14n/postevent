@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 public class LocalConsumerExample {
@@ -28,7 +28,7 @@ public class LocalConsumerExample {
                 EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
                 var lc = new LocalConsumer<>(new ConfigData(
                         "local",
-                        "topic",
+                        Set.of("topic"),
                         "127.0.0.1",
                         pg.getPort(),
                         "postgres",

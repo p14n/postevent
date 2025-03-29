@@ -45,7 +45,7 @@ class DeterministicConsumerTest {
 
             var config = new ConfigData(
                     TOPIC,
-                    TOPIC,
+                    Set.of(TOPIC),
                     "127.0.0.1",
                     pg.getPort(),
                     "postgres",
@@ -147,7 +147,7 @@ class DeterministicConsumerTest {
 
             var config = new ConfigData(
                     TOPIC,
-                    TOPIC,
+                    Set.of(TOPIC),
                     "127.0.0.1",
                     pg.getPort(),
                     "postgres",

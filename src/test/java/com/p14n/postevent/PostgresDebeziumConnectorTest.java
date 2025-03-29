@@ -6,6 +6,7 @@ import com.p14n.postevent.debezium.DebeziumServer;
 import io.debezium.engine.ChangeEvent;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -72,7 +73,7 @@ class PostgresDebeziumConnectorTest {
     @Test
     void engineStartsWithConsumer() throws IOException, InterruptedException {
         AtomicBoolean consumerCalled = new AtomicBoolean(false);
-        ConfigData cfg = new ConfigData("test", "test", "localhost", pg.getPort(), "postgres", "postgres",
+        ConfigData cfg = new ConfigData("test", Set.of("test"), "localhost", pg.getPort(), "postgres", "postgres",
                 "postgres", null);
         engine.start(cfg, (ChangeEvent<String, String> event) -> {
             consumerCalled.set(true);
@@ -85,7 +86,7 @@ class PostgresDebeziumConnectorTest {
     @Test
     void engineReceivesMessage() throws SQLException, IOException, InterruptedException {
 
-        ConfigData cfg = new ConfigData("test", "test", "localhost", pg.getPort(), "postgres", "postgres",
+        ConfigData cfg = new ConfigData("test", Set.of("test"), "localhost", pg.getPort(), "postgres", "postgres",
                 "postgres", null);
         var latch = new CountDownLatch(1);
         var result = new AtomicReference<String>();

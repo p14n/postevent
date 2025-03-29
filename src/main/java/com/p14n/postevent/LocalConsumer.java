@@ -30,11 +30,11 @@ public class LocalConsumer<OutT> implements AutoCloseable {
 
     public void start() throws IOException, InterruptedException {
         logger.atInfo()
-                .addArgument(config.topic()) // renamed from name()
+                .addArgument(config.topics()) // renamed from name()
                 .log("Starting local consumer for {}");
 
         try {
-            db.setupAll(config.topic()); // renamed from name()
+            db.setupAll(config.topics()); // renamed from name()
             Consumer<ChangeEvent<String, String>> consumer = record -> {
                 try {
                     Event event = changeEventToEvent(record);

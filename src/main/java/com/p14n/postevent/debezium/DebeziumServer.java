@@ -1,6 +1,8 @@
 package com.p14n.postevent.debezium;
 
 import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.p14n.postevent.data.PostEventConfig;
@@ -22,15 +24,20 @@ public class DebeziumServer {
 
         public static Properties props(
                         String affinity,
-                        String topic, // renamed from name
+                        Set<String> topics,
                         String dbHost,
                         String dbPort,
                         String dbUser,
                         String dbPassword,
                         String dbName) {
                 final Properties props = new Properties();
-                var affinityid = topic + "_" + affinity;
-                props.setProperty("name", "postevent-" + topic);
+
+                // Create comma-separated list of tables
+                String tableList = topics.stream()
+                                .map(topic -> "postevent." + topic)
+                                .collect(Collectors.joining(","));
+
+                props.setProperty("name", "postevent-multi");
                 props.setProperty("connector.class", "io.debezium.connector.postgresql.PostgresConnector");
                 props.setProperty("offset.storage", "io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore");
                 props.setProperty("offset.storage.jdbc.offset.table.name", "postevent.offsets");
@@ -45,11 +52,11 @@ public class DebeziumServer {
                 props.setProperty("database.user", dbUser);
                 props.setProperty("database.password", dbPassword);
                 props.setProperty("database.dbname", dbName);
-                props.setProperty("table.include.list", "postevent." + topic);
-                props.setProperty("topic.prefix", "postevent-" + topic);
+                props.setProperty("table.include.list", tableList);
+                props.setProperty("topic.prefix", "postevent");
                 props.setProperty("publication.autocreate.mode", "filtered");
                 props.setProperty("snapshot.mode", "no_data");
-                props.setProperty("slot.name", "postevent_" + topic + "_" + affinity);
+                props.setProperty("slot.name", "postevent_" + affinity);
                 props.setProperty("offset.storage.jdbc.offset.table.ddl",
                                 "CREATE TABLE IF NOT EXISTS %s (affinityid VARCHAR(255) NOT NULL, id VARCHAR(36) NOT NULL, "
                                                 +
@@ -58,13 +65,13 @@ public class DebeziumServer {
                                                 "record_insert_seq INTEGER NOT NULL" +
                                                 ")");
                 props.setProperty("offset.storage.jdbc.offset.table.select",
-                                "SELECT id, offset_key, offset_val FROM %s WHERE affinityid = '" + affinityid
+                                "SELECT id, offset_key, offset_val FROM %s WHERE affinityid = '" + affinity
                                                 + "' ORDER BY record_insert_ts, record_insert_seq");
                 props.setProperty("offset.storage.jdbc.offset.table.delete",
-                                "DELETE FROM %s WHERE affinityid = '" + affinityid + "'");
+                                "DELETE FROM %s WHERE affinityid = '" + affinity + "'");
                 props.setProperty("offset.storage.jdbc.offset.table.insert",
                                 "INSERT INTO %s(affinityid, id, offset_key, offset_val, record_insert_ts, record_insert_seq) VALUES ( '"
-                                                + affinityid + "', ?, ?, ?, ?, ? )");
+                                                + affinity + "', ?, ?, ?, ?, ? )");
                 return props;
         }
 
@@ -80,9 +87,9 @@ public class DebeziumServer {
                         throw new IllegalStateException("Config must be set before starting the engine");
                 }
                 logger.atInfo()
-                                .addArgument(cfg.topic())
+                                .addArgument(cfg.topics())
                                 .addArgument(cfg.affinity())
-                                .log("Starting Debezium engine for {} with affinity {}");
+                                .log("Starting Debezium engine for topics {} with affinity {}");
                 var started = new CountDownLatch(1);
                 engine = DebeziumEngine.create(Json.class)
                                 .using(new DebeziumEngine.ConnectorCallback() {
@@ -93,7 +100,7 @@ public class DebeziumServer {
                                         }
                                 })
                                 .using(cfg.overrideProps() != null ? cfg.overrideProps()
-                                                : props(cfg.affinity(), cfg.topic(), cfg.dbHost(),
+                                                : props(cfg.affinity(), cfg.topics(), cfg.dbHost(),
                                                                 String.valueOf(cfg.dbPort()), cfg.dbUser(),
                                                                 cfg.dbPassword(),
                                                                 cfg.dbName()))
