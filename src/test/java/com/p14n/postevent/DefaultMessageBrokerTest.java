@@ -114,12 +114,11 @@ class DefaultMessageBrokerTest {
         int threadCount = 3; // Further reduced for stability
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
-        AtomicInteger messageCount = new AtomicInteger();
 
         MessageSubscriber<String> subscriber = new MessageSubscriber<>() {
             @Override
             public void onMessage(String message) {
-                messageCount.incrementAndGet();
+                doneLatch.countDown();
             }
 
             @Override
@@ -137,15 +136,12 @@ class DefaultMessageBrokerTest {
                     broker.publish("test");
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                } finally {
-                    doneLatch.countDown();
                 }
             }).start();
         }
 
         startLatch.countDown();
         assertTrue(doneLatch.await(2, TimeUnit.SECONDS), "Concurrent test did not complete in time");
-        assertEquals(threadCount, messageCount.get());
     }
 
     @Test
