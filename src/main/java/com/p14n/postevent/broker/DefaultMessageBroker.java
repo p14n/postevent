@@ -39,13 +39,11 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
     @Override
     public void publish(InT message) {
 
-        System.err.println("DMB got event " + message);
         if (!canProcess(message)) {
             return;
         }
         // Deliver to all subscribers
         for (MessageSubscriber<OutT> subscriber : subscribers) {
-            System.err.println("TO ASYNC " + message);
 
             asyncExecutor.submit(() -> {
                 try {

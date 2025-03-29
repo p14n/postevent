@@ -10,11 +10,11 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable {
-    private static final Logger LOGGER = Logger.getLogger(CatchupGrpcClient.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(CatchupGrpcClient.class);
 
     private final ManagedChannel channel;
     private final CatchupServiceGrpc.CatchupServiceBlockingStub blockingStub;
@@ -32,8 +32,12 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
 
     @Override
     public List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic) {
-        LOGGER.info(String.format("Fetching events from topic %s between %d and %d (max: %d)",
-                topic, startAfter, end, maxResults));
+        logger.atInfo()
+                .addArgument(topic)
+                .addArgument(startAfter)
+                .addArgument(end)
+                .addArgument(maxResults)
+                .log("Fetching events from topic {} between {} and {} (max: {})");
 
         FetchEventsRequest request = FetchEventsRequest.newBuilder()
                 .setTopic(topic)
@@ -46,7 +50,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
         try {
             response = blockingStub.fetchEvents(request);
         } catch (StatusRuntimeException e) {
-            LOGGER.log(Level.WARNING, "RPC failed: {0}", e.getStatus());
+            logger.atWarn().setCause(e).log("RPC failed: {}", e.getStatus());
             throw new RuntimeException("Failed to fetch events via gRPC", e);
         }
 
@@ -55,7 +59,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
             events.add(convertFromGrpcEvent(grpcEvent, topic));
         }
 
-        LOGGER.info(String.format("Fetched %d events from topic %s", events.size(), topic));
+        logger.info("Fetched {} events from topic {}", events.size(), topic);
         return events;
     }
 
@@ -85,7 +89,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
         try {
             channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to close", e);
+            logger.error("Failed to close", e);
         }
     }
 }

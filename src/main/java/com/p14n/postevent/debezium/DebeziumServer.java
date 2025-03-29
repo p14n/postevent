@@ -79,7 +79,10 @@ public class DebeziumServer {
                 if (cfg == null) {
                         throw new IllegalStateException("Config must be set before starting the engine");
                 }
-                logger.info("Starting Debezium engine with host: {}, port: {}", cfg.dbHost(), cfg.dbPort());
+                logger.atInfo()
+                                .addArgument(cfg.name())
+                                .addArgument(cfg.affinity())
+                                .log("Starting Debezium engine for {} with affinity {}");
                 var started = new CountDownLatch(1);
                 engine = DebeziumEngine.create(Json.class)
                                 .using(new DebeziumEngine.ConnectorCallback() {
@@ -100,9 +103,12 @@ public class DebeziumServer {
                                 new ThreadFactoryBuilder().setNameFormat("post-event-debezium-%d").build());
                 executor.execute(engine);
                 if (!started.await(cfg.startupTimeoutSeconds(), TimeUnit.SECONDS)) {
-                        throw new IllegalStateException("Debezium engine failed to start within 30 seconds");
+                        logger.atError().log("Debezium engine failed to start within {} seconds",
+                                        cfg.startupTimeoutSeconds());
+                        throw new IllegalStateException("Debezium engine failed to start within "
+                                        + cfg.startupTimeoutSeconds() + " seconds");
                 }
-
+                logger.atInfo().log("Debezium engine started successfully");
         }
 
         public void stop() throws IOException {

@@ -16,6 +16,8 @@ import com.p14n.postevent.catchup.grpc.CatchupGrpcClient;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 
@@ -25,6 +27,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerClient implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
+    private static final Logger logger = LoggerFactory.getLogger(ConsumerClient.class);
 
     private AsyncExecutor asyncExecutor;
     private List<AutoCloseable> closeables;
@@ -49,33 +52,56 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     }
 
     public void start(DataSource ds, ManagedChannel channel) {
+        logger.atInfo().log("Starting consumer client");
+
         if (tb != null) {
+            logger.atError().log("Consumer client already started");
             throw new IllegalStateException("Already started");
         }
-        tb = new TransactionalBroker(ds, asyncExecutor);
-        var seb = new SystemEventBroker(asyncExecutor);
-        var pb = new PersistentBroker<>(tb, ds, seb);
-        var client = new MessageBrokerGrpcClient(channel, topic);
-        var catchupClient = new CatchupGrpcClient(channel);
-        client.subscribe(pb);
 
-        seb.subscribe(new CatchupService(ds, catchupClient, seb));
-        seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
-        asyncExecutor.scheduleAtFixedRate(() -> seb.publish(SystemEvent.UnprocessedCheckRequired), 30, 30, TimeUnit.SECONDS);
+        try {
+            tb = new TransactionalBroker(ds, asyncExecutor);
+            var seb = new SystemEventBroker(asyncExecutor);
+            var pb = new PersistentBroker<>(tb, ds, seb);
+            var client = new MessageBrokerGrpcClient(channel, topic);
+            var catchupClient = new CatchupGrpcClient(channel);
 
-        closeables = List.of(client, catchupClient, pb, seb, tb);
+            client.subscribe(pb);
+            seb.subscribe(new CatchupService(ds, catchupClient, seb));
+            seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
 
+            asyncExecutor.scheduleAtFixedRate(
+                    () -> seb.publish(SystemEvent.UnprocessedCheckRequired),
+                    30, 30, TimeUnit.SECONDS);
+
+            closeables = List.of(client, catchupClient, pb, seb, tb);
+
+            logger.atInfo().log("Consumer client started successfully");
+
+        } catch (Exception e) {
+            logger.atError()
+                    .setCause(e)
+                    .log("Failed to start consumer client");
+            throw new RuntimeException("Failed to start consumer client", e);
+        }
     }
 
     @Override
     public void close() {
+        logger.atInfo().log("Closing consumer client");
+
         for (AutoCloseable c : closeables) {
             try {
                 c.close();
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.atWarn()
+                        .setCause(e)
+                        .addArgument(c.getClass().getSimpleName())
+                        .log("Error closing {}");
             }
         }
+
+        logger.atInfo().log("Consumer client closed");
     }
 
     @Override

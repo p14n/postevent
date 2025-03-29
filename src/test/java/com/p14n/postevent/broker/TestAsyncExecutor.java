@@ -172,18 +172,19 @@ public class TestAsyncExecutor implements AsyncExecutor {
 
     @SuppressWarnings("unchecked")
     public void tick(Random random, boolean includeScheduled) {
-        System.err.println("TICK ? " + pendingTasks.size());
-        if (pendingTasks.isEmpty() || ( includeScheduled && scheduledTasks.isEmpty())) {
+
+        var handleScheduled = includeScheduled && !scheduledTasks.isEmpty();
+        if (pendingTasks.isEmpty() && !handleScheduled) {
             return;
         }
 
         // Create a copy of tasks and shuffle them
         List<Task> tasksCopy = new ArrayList<>(pendingTasks);
-        if(includeScheduled) tasksCopy.addAll(scheduledTasks);
+        if (handleScheduled)
+            tasksCopy.addAll(scheduledTasks);
         Collections.shuffle(tasksCopy, random);
         Task task = tasksCopy.getFirst();
 
-        System.err.println("TICK " + task);
         // Process the task
         try {
             if (task.callable != null) {
