@@ -16,8 +16,11 @@ import com.p14n.postevent.data.ConfigData;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConsumerServer implements AutoCloseable {
+    private static final Logger logger = LoggerFactory.getLogger(ConsumerServer.class);
 
     private DataSource ds;
     private ConfigData cfg;
@@ -40,30 +43,51 @@ public class ConsumerServer implements AutoCloseable {
     }
 
     public void start(ServerBuilder<?> sb) throws IOException, InterruptedException {
+        logger.atInfo().log("Starting consumer server");
+
         var mb = new EventMessageBroker(asyncExecutor);
         var lc = new LocalConsumer<>(cfg, mb);
         var grpcServer = new MessageBrokerGrpcServer(mb);
         var catchupServer = new CatchupServer(ds);
         var catchupService = new CatchupGrpcServer.CatchupServiceImpl(catchupServer);
-        lc.start();
-        server = sb.addService(grpcServer)
-                .addService(catchupService)
-                .permitKeepAliveTime(1, TimeUnit.HOURS)
-                .permitKeepAliveWithoutCalls(true)
-                .build()
-                .start();
+
+        try {
+            lc.start();
+            server = sb.addService(grpcServer)
+                    .addService(catchupService)
+                    .permitKeepAliveTime(1, TimeUnit.HOURS)
+                    .permitKeepAliveWithoutCalls(true)
+                    .build()
+                    .start();
+
+            logger.atInfo().log("Consumer server started successfully");
+
+        } catch (Exception e) {
+            logger.atError()
+                    .setCause(e)
+                    .log("Failed to start consumer server");
+            throw e;
+        }
+
         closeables = List.of(lc, mb, asyncExecutor);
     }
 
     public void stop() {
+        logger.atInfo().log("Stopping consumer server");
+
         server.shutdown();
         for (var c : closeables) {
             try {
                 c.close();
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.atWarn()
+                        .setCause(e)
+                        .addArgument(c.getClass().getSimpleName())
+                        .log("Error closing {}");
             }
         }
+
+        logger.atInfo().log("Consumer server stopped");
     }
 
     @Override

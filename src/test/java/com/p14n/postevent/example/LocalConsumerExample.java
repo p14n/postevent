@@ -36,14 +36,13 @@ public class LocalConsumerExample {
                         "postgres"), mb)) {
 
             mb.subscribe(message -> {
-                logger.info("********* Message received *************");
+                logger.atInfo().log("********* Message received *************");
                 l.countDown();
             });
 
             lc.start();
             Publisher.publish(TestUtil.createTestEvent(1), pg.getPostgresDatabase(), "topic");
             l.await();
-
         }
     }
 }

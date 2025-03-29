@@ -28,15 +28,15 @@ public class CatchupGrpcServer {
 
     public void start() throws IOException {
         server.start();
-        logger.info("Server started, listening on port {}", port);
+        logger.atInfo().log("Server started, listening on port {}", port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.info("*** Shutting down gRPC server since JVM is shutting down");
+            logger.atInfo().log("*** Shutting down gRPC server since JVM is shutting down");
             try {
                 CatchupGrpcServer.this.stop();
             } catch (InterruptedException e) {
-                logger.error("Error shutting down server", e);
+                logger.atError().setCause(e).log("Error shutting down server");
             }
-            logger.info("*** Server shut down");
+            logger.atInfo().log("*** Server shut down");
         }));
     }
 

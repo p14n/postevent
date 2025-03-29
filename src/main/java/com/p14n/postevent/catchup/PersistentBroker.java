@@ -10,7 +10,11 @@ import com.p14n.postevent.db.SQL;
 import javax.sql.DataSource;
 import java.sql.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoCloseable, MessageSubscriber<Event> {
+    private static final Logger logger = LoggerFactory.getLogger(PersistentBroker.class);
     private static final String INSERT_SQL = "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
             ") VALUES (" + SQL.EXT_PH + ")";
     private static final String UPDATE_HWM_SQL = "UPDATE postevent.contiguous_hwm set hwm=? where topic_name=? and hwm=?";
@@ -45,16 +49,21 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
                 stmt.setString(2, event.topic());
                 stmt.setLong(3, event.idn() - 1);
                 updates = stmt.executeUpdate();
-                if (updates < 1)
+                if (updates < 1) {
+                    logger.atDebug().log("Publishing catchup required event");
                     systemEventBroker
                             .publish(SystemEvent.CatchupRequired.withTopic(event.topic()));
+
+                }
             }
 
             conn.commit();
 
             // Forward to actual subscriber after successful persistence
-            if (updates > 0)
+            if (updates > 0) {
+                logger.atDebug().log("Forwarding event to target broker");
                 targetBroker.publish(event);
+            }
 
         } catch (SQLException e) {
             SQL.handleSQLException(e, conn);
@@ -86,6 +95,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
 
     @Override
     public void onMessage(Event message) {
+        logger.atDebug().log("Received event for persistence");
         publish(message);
     }
 }

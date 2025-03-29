@@ -32,8 +32,12 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
 
     @Override
     public List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic) {
-        logger.info("Fetching events from topic {} between {} and {} (max: {})",
-                topic, startAfter, end, maxResults);
+        logger.atInfo()
+                .addArgument(topic)
+                .addArgument(startAfter)
+                .addArgument(end)
+                .addArgument(maxResults)
+                .log("Fetching events from topic {} between {} and {} (max: {})");
 
         FetchEventsRequest request = FetchEventsRequest.newBuilder()
                 .setTopic(topic)
@@ -46,7 +50,7 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
         try {
             response = blockingStub.fetchEvents(request);
         } catch (StatusRuntimeException e) {
-            logger.warn("RPC failed: {}", e.getStatus());
+            logger.atWarn().setCause(e).log("RPC failed: {}", e.getStatus());
             throw new RuntimeException("Failed to fetch events via gRPC", e);
         }
 

@@ -35,7 +35,7 @@ class DeterministicConsumerTest {
 
     @Property(tries = 10)
     void testDeterministicEventDelivery(@ForAll("randomSeeds") long seed) throws Exception {
-        logger.info("Testing with seed: {}", seed);
+        logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
         var executor = new TestAsyncExecutor();
 
@@ -68,7 +68,7 @@ class DeterministicConsumerTest {
             // Generate random number of events (1-100)
             int numberOfEvents = random.nextInt(100) + 1;
             var eventsLatch = new CountDownLatch(numberOfEvents);
-            logger.info("Testing with {} events", numberOfEvents);
+            logger.atInfo().log("Testing with {} events", numberOfEvents);
 
             AtomicInteger failmod = new AtomicInteger(5);
 
@@ -80,7 +80,7 @@ class DeterministicConsumerTest {
                 }
                 var eventId = event.event().id();
                 receivedEventIds.add(eventId);
-                logger.info("Received event: {} {}", eventId, receivedEventIds.size());
+                logger.atInfo().log("Received event: {} {}", eventId, receivedEventIds.size());
                 receivedEventIdns.add(eventIdn);
                 eventsLatch.countDown();
             });
@@ -93,7 +93,7 @@ class DeterministicConsumerTest {
                         var event = TestUtil.createTestEvent(eventNumber);
                         publishedEventIds.add(event.id());
                         Publisher.publish(event, dataSource, TOPIC);
-                        logger.info("Published event: {}", event.id());
+                        logger.atInfo().log("Published event: {}", event.id());
                         return event.id();
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to publish event", e);
@@ -110,14 +110,15 @@ class DeterministicConsumerTest {
                 executor.tick(random, tickCount % 5 == 0);
                 Thread.sleep(10);
                 tickCount++;
-                logger.info("Tick {}: Received {} of {} events", tickCount, receivedEventIds.size(), numberOfEvents);
+                logger.atInfo().log("Tick {}: Received {} of {} events", tickCount, receivedEventIds.size(),
+                        numberOfEvents);
             }
             Thread.sleep(2000);
 
-            logger.info("Test completed in {} ticks", tickCount);
-            logger.info("Published events: {}", publishedEventIds.size());
-            logger.info("Received events: {}", receivedEventIds.size());
-            logger.info("Received event IDs: {}", receivedEventIdns);
+            logger.atInfo().log("Test completed in {} ticks", tickCount);
+            logger.atInfo().log("Published events: {}", publishedEventIds.size());
+            logger.atInfo().log("Received events: {}", receivedEventIds.size());
+            logger.atInfo().log("Received event IDs: {}", receivedEventIdns);
 
             // Assertions
             assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
@@ -164,7 +165,7 @@ class DeterministicConsumerTest {
             var client = new ConsumerClient(TOPIC, executor);
             client.start(dataSource, "localhost", PORT);
 
-            logger.info("Testing with seed: " + seed);
+            logger.atInfo().log("Testing with seed: {}", seed);
             Random random = new Random(seed);
 
             var receivedEventIdns = new ConcurrentHashMap<String, List<Long>>();
@@ -177,7 +178,7 @@ class DeterministicConsumerTest {
             // Generate random number of events (1-100)
             int numberOfEvents = random.nextInt(100) + 1;
             var eventsLatch = new CountDownLatch(numberOfEvents);
-            logger.info("Testing with " + numberOfEvents + " events");
+            logger.atInfo().log("Testing with {} events", numberOfEvents);
 
             AtomicInteger failmod = new AtomicInteger(5);
 
@@ -189,7 +190,7 @@ class DeterministicConsumerTest {
                 }
                 var eventId = event.event().id();
                 receivedEventIds.add(eventId);
-                logger.info("Received event: " + eventId + " " + receivedEventIds.size());
+                logger.atInfo().log("Received event: {} {}", eventId, receivedEventIds.size());
                 receivedEventIdns.get(event.event().subject()).add(eventIdn);
                 eventsLatch.countDown();
             });
@@ -202,7 +203,7 @@ class DeterministicConsumerTest {
                         var event = TestUtil.createTestEvent(eventNumber, "subject" + (eventNumber % 3));
                         publishedEventIds.add(event.id());
                         Publisher.publish(event, dataSource, TOPIC);
-                        logger.info("Published event: " + event.id());
+                        logger.atInfo().log("Published event: {}", event.id());
                         return event.id();
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to publish event", e);
@@ -219,15 +220,15 @@ class DeterministicConsumerTest {
                 executor.tick(random, tickCount % 5 == 0);
                 Thread.sleep(10);
                 tickCount++;
-                logger.info("Tick " + tickCount + ": Received " + receivedEventIds.size() + " of " + numberOfEvents
-                        + " events");
+                logger.atInfo().log("Tick {}: Received {} of {} events", tickCount, receivedEventIds.size(),
+                        numberOfEvents);
             }
             Thread.sleep(2000);
 
-            logger.info("Test completed in " + tickCount + " ticks");
-            logger.info("Published events: " + publishedEventIds.size());
-            logger.info("Received events: " + receivedEventIds.size());
-            logger.info("Received event IDs: " + receivedEventIdns);
+            logger.atInfo().log("Test completed in {} ticks", tickCount);
+            logger.atInfo().log("Published events: {}", publishedEventIds.size());
+            logger.atInfo().log("Received events: {}", receivedEventIds.size());
+            logger.atInfo().log("Received event IDs: {}", receivedEventIdns);
 
             // Assertions
             assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");

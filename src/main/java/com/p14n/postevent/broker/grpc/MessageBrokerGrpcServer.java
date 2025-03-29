@@ -31,10 +31,10 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
     @Override
     public void subscribeToEvents(SubscriptionRequest request, StreamObserver<EventResponse> responseObserver) {
         String topic = request.getTopic();
-        logger.info("Subscription request received for topic: {}", topic);
+        logger.atInfo().log("Subscription request received for topic: {}", topic);
 
         if (topic == null || topic.isEmpty()) {
-            logger.error("Invalid topic name received");
+            logger.atError().log("Invalid topic name received");
             errorResponse(responseObserver, "Topic name cannot be empty",
                     new IllegalArgumentException("Topic name cannot be empty"));
             return;
@@ -46,7 +46,7 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             MessageSubscriber<Event> subscriber = new MessageSubscriber<Event>() {
                 @Override
                 public void onMessage(Event event) {
-                    logger.info("Received message for topic: {}", topic);
+                    logger.atInfo().log("Received message for topic: {}", topic);
                     if (cancelled.get()) {
                         return;
                     }
@@ -55,7 +55,7 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
                             EventResponse response = convertToGrpcEvent(event);
                             responseObserver.onNext(response);
                         } catch (Exception e) {
-                            logger.error("Error sending event to client", e);
+                            logger.atError().setCause(e).log("Error sending event to client");
                             if (!cancelled.getAndSet(true)) {
                                 errorResponse(responseObserver, "Error processing event", e);
                             }
@@ -65,7 +65,10 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
 
                 @Override
                 public void onError(Throwable error) {
-                    logger.error("Error subscribing to topic: {}", topic, error);
+                    logger.atError()
+                            .addArgument(topic)
+                            .setCause(error)
+                            .log("Error subscribing to topic: {}");
                     if (!cancelled.getAndSet(true)) {
                         errorResponse(responseObserver, "Failed to subscribe to topic: " + topic, error);
                     }
@@ -76,13 +79,13 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             responseCallObserver.setOnCancelHandler(() -> {
                 cancelled.set(true);
                 messageBroker.unsubscribe(subscriber);
-                logger.info("Unsubscribed from topic: {}", topic);
+                logger.atInfo().log("Unsubscribed from topic: {}", topic);
             });
             messageBroker.subscribe(subscriber);
 
-            logger.info("Subscribed to topic: {}", topic);
+            logger.atInfo().log("Subscribed to topic: {}", topic);
         } catch (Exception e) {
-            logger.error("Error subscribing to topic: " + topic, e);
+            logger.atError().setCause(e).log("Error setting up subscription to topic: {}", topic);
             if (!cancelled.getAndSet(true)) {
                 errorResponse(responseObserver, "Failed to subscribe to topic: " + topic, e);
             }
