@@ -4,6 +4,8 @@ import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.DatabaseSetup;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -11,6 +13,8 @@ import io.grpc.ServerBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -21,8 +25,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,7 +36,7 @@ public class MessageBrokerGrpcIntegrationTest {
     private Server server;
     private MessageBrokerGrpcClient client;
     private TestMessageBroker messageBroker;
-    private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcIntegrationTest.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MessageBrokerGrpcIntegrationTest.class);
 
     @BeforeEach
     public void setUp() throws IOException {
@@ -53,7 +55,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(HOST, PORT,"*");
+        client = new MessageBrokerGrpcClient(HOST, PORT, "*");
     }
 
     @AfterEach
@@ -93,9 +95,10 @@ public class MessageBrokerGrpcIntegrationTest {
         // Publish events to the broker
         for (int i = 0; i < eventCount; i++) {
             Event event = createSampleEvent(i + 1);
-            LOGGER.log(Level.INFO, "Publishing event: " + i + " " + event.id());
+
+            logger.info("Publishing event: " + i + " " + event.id());
             messageBroker.publish(event);
-            LOGGER.log(Level.INFO, "Published event: " + event.id());
+            logger.info("Published event: " + event.id());
             // Small delay to avoid overwhelming the stream
             Thread.sleep(50);
         }
@@ -138,7 +141,7 @@ public class MessageBrokerGrpcIntegrationTest {
             public void onMessage(Event event) {
                 eventReceived.countDown();
                 eventReceivedCount.incrementAndGet();
-                LOGGER.log(Level.INFO, "Event received in test: " + event.id());
+                logger.info("Event received in test: " + event.id());
             }
 
             @Override
@@ -155,25 +158,25 @@ public class MessageBrokerGrpcIntegrationTest {
         messageBroker.publish(event1);
 
         // Wait for the event to be received
-        LOGGER.log(Level.INFO, "Waiting for event to be received");
+        logger.info("Waiting for event to be received");
         boolean received = eventReceived.await(5, TimeUnit.SECONDS);
         assertTrue(received, "Event was not received");
 
         // Unsubscribe
-        LOGGER.log(Level.INFO, "Unsubscribing from events");
+        logger.info("Unsubscribing from events");
         client.unsubscribe(subscriber);
-        LOGGER.log(Level.INFO, "Unsubscribed from events");
+        logger.info("Unsubscribed from events");
 
         // Publish another event
         Event event2 = createSampleEvent(2);
         messageBroker.publish(event2);
 
         // Wait a bit to see if the event is received
-        LOGGER.log(Level.INFO, "Waiting for secondevent to be received");
+        logger.info("Waiting for secondevent to be received");
         Thread.sleep(1000);
 
         // Verify no events were received after unsubscribe
-        LOGGER.log(Level.INFO, "Checking if event was received");
+        logger.info("Checking if event was received");
         assertFalse(eventReceivedCount.get() > 1, "Event was received after unsubscribe");
     }
 
@@ -203,13 +206,13 @@ public class MessageBrokerGrpcIntegrationTest {
     /**
      * Test implementation of MessageBroker that allows controlling event flow
      */
-    private static class TestMessageBroker extends DefaultMessageBroker<Event,Event> {
+    private static class TestMessageBroker extends DefaultMessageBroker<Event, Event> {
         private final List<Event> publishedEvents = new ArrayList<>();
 
         @Override
         public void publish(Event event) {
             publishedEvents.add(event);
-            LOGGER.log(Level.INFO, "Published event in test broker: " + event.id());
+            logger.info("Published event in test broker: " + event.id());
             super.publish(event);
         }
 

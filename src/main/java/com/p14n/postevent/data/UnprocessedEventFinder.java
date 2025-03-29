@@ -9,15 +9,18 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.p14n.postevent.broker.grpc.MessageBrokerGrpcClient;
 
 /**
  * Responsible for finding all unprocessed events in the messages table.
  * Unprocessed events have a status of 'u'.
  */
 public class UnprocessedEventFinder {
-    private static final Logger LOGGER = Logger.getLogger(UnprocessedEventFinder.class.getName());
+
+    private static final Logger logger = LoggerFactory.getLogger(UnprocessedEventFinder.class);
 
     /**
      * Finds all unprocessed events in the messages table.
@@ -27,7 +30,7 @@ public class UnprocessedEventFinder {
      * @throws SQLException if a database error occurs
      */
     public List<Event> findUnprocessedEvents(Connection connection) throws SQLException {
-        LOGGER.info("Finding all unprocessed events");
+        logger.atInfo().log("Finding all unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
                 "time, idn, topic FROM postevent.messages " +
@@ -38,7 +41,7 @@ public class UnprocessedEventFinder {
                 ResultSet rs = stmt.executeQuery()) {
 
             List<Event> events = processResultSet(rs);
-            LOGGER.info("Found " + events.size() + " unprocessed events");
+            logger.atInfo().log("Found {} unprocessed events", events.size());
             return events;
         }
     }
@@ -53,7 +56,7 @@ public class UnprocessedEventFinder {
      * @throws SQLException if a database error occurs
      */
     public List<Event> findUnprocessedEventsBySubject(Connection connection, String subject) throws SQLException {
-        LOGGER.info("Finding unprocessed events for subject: " + subject);
+        logger.atInfo().log("Finding unprocessed events for subject: {}", subject);
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
                 "time, idn, topic FROM postevent.messages " +
@@ -65,7 +68,7 @@ public class UnprocessedEventFinder {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<Event> events = processResultSet(rs);
-                LOGGER.info("Found " + events.size() + " unprocessed events for subject: " + subject);
+                logger.atInfo().log("Found {} unprocessed events for subject: {}", events.size(), subject);
                 return events;
             }
         }

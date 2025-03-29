@@ -1,24 +1,29 @@
 package com.p14n.postevent.db;
 
 import com.p14n.postevent.data.PostEventConfig;
+import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.zaxxer.hikari.HikariDataSource;
 
 import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class DatabaseSetup {
-    private static final Logger LOGGER = Logger.getLogger(DatabaseSetup.class.getName());
+
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseSetup.class);
+
     private final String jdbcUrl;
     private final String username;
     private final String password;
 
-    public DatabaseSetup(PostEventConfig cfg){
-        this(cfg.jdbcUrl(),cfg.dbUser(),cfg.dbPassword());
+    public DatabaseSetup(PostEventConfig cfg) {
+        this(cfg.jdbcUrl(), cfg.dbUser(), cfg.dbPassword());
     }
 
     public DatabaseSetup(String jdbcUrl, String username, String password) {
@@ -27,7 +32,7 @@ public class DatabaseSetup {
         this.password = password;
     }
 
-    public void setupAll(String topic){
+    public void setupAll(String topic) {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
         createContiguousHwmTableIfNotExists();
@@ -40,10 +45,10 @@ public class DatabaseSetup {
 
             String sql = "CREATE SCHEMA IF NOT EXISTS postevent";
             stmt.execute(sql);
-            LOGGER.info("Schema creation completed successfully");
+            logger.atInfo().log("Schema creation completed successfully");
 
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error creating schema", e);
+            logger.atError().setCause(e).log("Error creating schema");
             throw new RuntimeException("Failed to create schema", e);
         }
         return this;
@@ -75,10 +80,10 @@ public class DatabaseSetup {
                     )""", topic);
 
             stmt.execute(sql);
-            LOGGER.info("Table creation completed successfully for topic: " + topic);
+            logger.atInfo().log("Table creation completed successfully for topic: {}", topic);
 
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error creating table for topic: " + topic, e);
+            logger.atError().setCause(e).log("Error creating table for topic: {}", topic);
             throw new RuntimeException("Failed to create table", e);
         }
         return this;
@@ -105,10 +110,10 @@ public class DatabaseSetup {
                     )""";
 
             stmt.execute(sql);
-            LOGGER.info("Messages table creation completed successfully");
+            logger.atInfo().log("Messages table creation completed successfully");
 
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error creating messages table", e);
+            logger.atError().setCause(e).log("Error creating messages table");
             throw new RuntimeException("Failed to create messages table", e);
         }
         return this;
@@ -125,10 +130,10 @@ public class DatabaseSetup {
                     )""";
 
             stmt.execute(sql);
-            LOGGER.info("Contiguous HWM table creation completed successfully");
+            logger.atInfo().log("Contiguous HWM table creation completed successfully");
 
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error creating contiguous_hwm table", e);
+            logger.atError().setCause(e).log("Error creating contiguous HWM table");
             throw new RuntimeException("Failed to create contiguous_hwm table", e);
         }
         return this;
@@ -138,7 +143,7 @@ public class DatabaseSetup {
         return DriverManager.getConnection(jdbcUrl, username, password);
     }
 
-    public static DataSource createPool(PostEventConfig cfg){
+    public static DataSource createPool(PostEventConfig cfg) {
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl(cfg.jdbcUrl());
         ds.setUsername(cfg.dbUser());

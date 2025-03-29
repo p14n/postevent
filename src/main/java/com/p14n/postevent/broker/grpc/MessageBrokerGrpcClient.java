@@ -3,6 +3,7 @@ package com.p14n.postevent.broker.grpc;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.data.Event;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -12,11 +13,13 @@ import java.time.OffsetDateTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoCloseable {
-    private static final Logger LOGGER = Logger.getLogger(MessageBrokerGrpcClient.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MessageBrokerGrpcClient.class);
+
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;
     private final AtomicBoolean subscribed = new AtomicBoolean(false);
 
@@ -28,7 +31,7 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
-                .build(),topic);
+                .build(), topic);
     }
 
     public MessageBrokerGrpcClient(ManagedChannel channel, String topic) {
@@ -46,23 +49,23 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
             @Override
             public void onNext(EventResponse response) {
                 try {
-                    LOGGER.log(Level.INFO, "Received event: " + response.getId());
+                    logger.atDebug().log(() -> "Received event: " + response.getId());
                     Event event = convertFromGrpcEvent(response);
                     publish(event);
                 } catch (Exception e) {
-                    LOGGER.log(Level.SEVERE, "Error processing event", e);
+                    logger.atError().setCause(e).log("Error processing event");
                 }
             }
 
             @Override
             public void onError(Throwable t) {
-                LOGGER.log(Level.SEVERE, "Error in event stream", t);
+                logger.atError().setCause(t).log("Error in event stream");
                 subscribed.set(false);
             }
 
             @Override
             public void onCompleted() {
-                LOGGER.info("Stream completed");
+                logger.atInfo().log("Stream completed");
                 subscribed.set(false);
             }
         };
@@ -122,4 +125,3 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
         return unsubscribed;
     }
 }
-

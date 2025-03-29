@@ -1,21 +1,25 @@
 package com.p14n.postevent.processor;
 
 import com.p14n.postevent.data.Event;
+import com.p14n.postevent.db.DatabaseSetup;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.function.BiFunction;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Processes events in order, ensuring that all events with the same subject
  * and lower idn values are processed first.
  */
 public class OrderedProcessor {
-    private static final Logger LOGGER = Logger.getLogger(OrderedProcessor.class.getName());
+
+    private static final Logger logger = LoggerFactory.getLogger(OrderedProcessor.class);
+
     private final BiFunction<Connection, Event, Boolean> processorFunction;
 
     /**
@@ -44,19 +48,19 @@ public class OrderedProcessor {
 
             // Check if there are any unprocessed events with the same subject and lower idn
             if (hasUnprocessedPriorEvents(connection, event)) {
-                LOGGER.info("Skipping event " + event.id() + " (idn: " + event.idn() + ")"
+                logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ")"
                         + " as there are unprocessed prior events");
                 return false;
             }
 
             // Try to update the status to 'p' (processed)
             if (!updateEventStatus(connection, event)) {
-                LOGGER.info("Skipping event " + event.id() + " (idn: " + event.idn() + ")"
+                logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ")"
                         + " as it's already being processed");
                 return false;
             }
             if (!previousEventExists(connection, event)) {
-                LOGGER.info("Ignoring event " + event.id() + " (idn: " + event.idn() + ")"
+                logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ")"
                         + " as the previous event has not reached the client");
                 return false;
             }
@@ -66,13 +70,14 @@ public class OrderedProcessor {
 
             if (success) {
                 connection.commit();
-                LOGGER.info("Successfully processed event " + event.idn());
+                logger.atDebug()
+                        .log(() -> "Successfully processed event " + event.id() + " (idn: " + event.idn() + ")");
                 return true;
             } else {
                 return false; // Already rolled back in processEventWithFunction
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Database error while processing event " + event.id(), e);
+            logger.atError().setCause(e).log("Error processing event");
             performRollback(connection);
             return false;
         }
@@ -122,7 +127,7 @@ public class OrderedProcessor {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     long hwm = rs.getLong(1);
-                    LOGGER.info("HWMvv "+hwm);
+                    LOGGER.info("HWMvv " + hwm);
 
                     return hwm >= event.idn() - 1;
                 }

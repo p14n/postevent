@@ -1,20 +1,24 @@
 package com.p14n.postevent.catchup;
 
+import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.SQL;
 
 import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class CatchupServer implements CatchupServerInterface {
-    private static final Logger LOGGER = Logger.getLogger(CatchupServer.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(CatchupServer.class);
+
     private final DataSource dataSource;
 
     public CatchupServer(DataSource dataSource) {
@@ -52,13 +56,13 @@ public class CatchupServer implements CatchupServerInterface {
                 }
             }
 
-            LOGGER.info(String.format("Fetched %d events from topic %s between %d and %d",
+            logger.atInfo().log(String.format("Fetched %d events from topic %s between %d and %d",
                     events.size(), topic, startAfter, end));
 
             return events;
 
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error fetching events from database", e);
+            logger.atError().setCause(e).log("Error fetching events from database");
             throw new RuntimeException("Failed to fetch events", e);
         }
     }

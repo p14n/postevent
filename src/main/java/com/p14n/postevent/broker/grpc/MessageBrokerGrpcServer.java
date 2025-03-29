@@ -46,7 +46,7 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             MessageSubscriber<Event> subscriber = new MessageSubscriber<Event>() {
                 @Override
                 public void onMessage(Event event) {
-                    logger.atInfo().log("Received message for topic: {}", topic);
+                    logger.atDebug().log("Received message for topic: {}", topic);
                     if (cancelled.get()) {
                         return;
                     }

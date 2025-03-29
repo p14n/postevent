@@ -30,13 +30,13 @@ public class CatchupGrpcServer {
         server.start();
         logger.atInfo().log("Server started, listening on port {}", port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.atInfo().log("*** Shutting down gRPC server since JVM is shutting down");
+            logger.atInfo().log("Shutting down gRPC server since JVM is shutting down");
             try {
                 CatchupGrpcServer.this.stop();
             } catch (InterruptedException e) {
                 logger.atError().setCause(e).log("Error shutting down server");
             }
-            logger.atInfo().log("*** Server shut down");
+            logger.atInfo().log("Server shut down");
         }));
     }
 
