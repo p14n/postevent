@@ -22,8 +22,10 @@ public class OrderedProcessorTest {
 
     private Connection mockConnection;
     private PreparedStatement mockPriorEventsStmt;
+    private PreparedStatement mockHwmStmt;
     private PreparedStatement mockUpdateStmt;
     private ResultSet mockResultSet;
+    private ResultSet mockHwmResultSet;
     private BiFunction<Connection, Event, Boolean> mockProcessor;
     private OrderedProcessor orderedProcessor;
     private Event testEvent;
@@ -33,9 +35,10 @@ public class OrderedProcessorTest {
         // Create mocks
         mockConnection = mock(Connection.class);
         mockPriorEventsStmt = mock(PreparedStatement.class);
+        mockHwmStmt = mock(PreparedStatement.class);
         mockUpdateStmt = mock(PreparedStatement.class);
         mockResultSet = mock(ResultSet.class);
-
+        mockHwmResultSet = mock(ResultSet.class);
         // Setup connection behavior
         when(mockConnection.prepareStatement(anyString())).thenAnswer(invocation -> {
             String sql = invocation.getArgument(0);
@@ -43,13 +46,15 @@ public class OrderedProcessorTest {
                 return mockPriorEventsStmt;
             } else if (sql.contains("UPDATE")) {
                 return mockUpdateStmt;
+            } else if (sql.contains("SELECT hwm")){
+                return mockHwmStmt;
             }
             return mock(PreparedStatement.class);
         });
 
         // Setup statement behavior
         when(mockPriorEventsStmt.executeQuery()).thenReturn(mockResultSet);
-
+        when(mockHwmStmt.executeQuery()).thenReturn(mockHwmResultSet);
         // Create test event
         testEvent = createTestEvent();
 
@@ -67,7 +72,8 @@ public class OrderedProcessorTest {
         when(mockResultSet.getInt(1)).thenReturn(0); // No prior unprocessed events
         when(mockUpdateStmt.executeUpdate()).thenReturn(1); // Update successful
         when(mockProcessor.apply(mockConnection, testEvent)).thenReturn(true); // Processing successful
-
+        when(mockHwmResultSet.next()).thenReturn(true);
+        when(mockHwmResultSet.getLong(1)).thenReturn(123L);
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
 
@@ -91,6 +97,7 @@ public class OrderedProcessorTest {
         // Setup mocks for prior unprocessed events
         when(mockResultSet.next()).thenReturn(true);
         when(mockResultSet.getInt(1)).thenReturn(1); // One prior unprocessed event
+        when(mockHwmResultSet.getInt(1)).thenReturn(1);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
@@ -116,6 +123,7 @@ public class OrderedProcessorTest {
         when(mockResultSet.next()).thenReturn(true);
         when(mockResultSet.getInt(1)).thenReturn(0); // No prior unprocessed events
         when(mockUpdateStmt.executeUpdate()).thenReturn(0); // Update failed (already processed)
+        when(mockHwmResultSet.getInt(1)).thenReturn(1);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
@@ -137,6 +145,8 @@ public class OrderedProcessorTest {
         when(mockResultSet.getInt(1)).thenReturn(0); // No prior unprocessed events
         when(mockUpdateStmt.executeUpdate()).thenReturn(1); // Update successful
         when(mockProcessor.apply(mockConnection, testEvent)).thenReturn(false); // Processing failed
+        when(mockHwmResultSet.next()).thenReturn(true);
+        when(mockHwmResultSet.getLong(1)).thenReturn(123L);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
@@ -160,6 +170,8 @@ public class OrderedProcessorTest {
         when(mockResultSet.getInt(1)).thenReturn(0); // No prior unprocessed events
         when(mockUpdateStmt.executeUpdate()).thenReturn(1); // Update successful
         when(mockProcessor.apply(mockConnection, testEvent)).thenThrow(new RuntimeException("Test exception"));
+        when(mockHwmResultSet.next()).thenReturn(true);
+        when(mockHwmResultSet.getLong(1)).thenReturn(123L);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
@@ -182,6 +194,7 @@ public class OrderedProcessorTest {
         when(mockResultSet.next()).thenReturn(true);
         when(mockResultSet.getInt(1)).thenReturn(0); // No prior unprocessed events
         when(mockUpdateStmt.executeUpdate()).thenThrow(new SQLException("Test SQL exception"));
+        when(mockHwmResultSet.getInt(1)).thenReturn(1);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);
@@ -206,6 +219,7 @@ public class OrderedProcessorTest {
         when(mockResultSet.getInt(1)).thenReturn(0);
         when(mockUpdateStmt.executeUpdate()).thenReturn(1);
         when(mockProcessor.apply(mockConnection, testEvent)).thenReturn(true);
+        when(mockHwmResultSet.getInt(1)).thenReturn(1);
 
         // Execute
         orderedProcessor.process(mockConnection, testEvent);
@@ -229,6 +243,7 @@ public class OrderedProcessorTest {
     public void testProcessWithQueryException() throws SQLException {
         // Setup mocks for query exception
         when(mockPriorEventsStmt.executeQuery()).thenThrow(new SQLException("Test query exception"));
+        when(mockHwmResultSet.getInt(1)).thenReturn(1);
 
         // Execute
         boolean result = orderedProcessor.process(mockConnection, testEvent);

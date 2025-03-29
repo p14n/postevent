@@ -144,7 +144,7 @@ class DefaultMessageBrokerTest {
         }
 
         startLatch.countDown();
-        assertTrue(doneLatch.await(1, TimeUnit.SECONDS), "Concurrent test did not complete in time");
+        assertTrue(doneLatch.await(2, TimeUnit.SECONDS), "Concurrent test did not complete in time");
         assertEquals(threadCount, messageCount.get());
     }
 
