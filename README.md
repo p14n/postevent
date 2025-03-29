@@ -29,15 +29,7 @@ The project uses modern Java (JDK 21), Gradle for build management, and includes
 * Receive all previous events on first connect
 * Receive new events in real time 
 
-Create a local Event consumer
-- [x] Publish a message to the event topic
-- [x] Consume the message from the event topic
-- [x] Ensure the message received is the same as the message published
-
-Create a persistent Event consumer
-- [X] Publish a message to the event topic
-- [X] Message received is first stored in the database, then sent to the consumer
-
+TODO
 Create a catchup mechanism
 * The PC/PR detects that it has gaps in the event sequence
    * As a new event is received, the CHWM is updated if the CHWM is idn-1
@@ -54,6 +46,7 @@ Create a catchup mechanism
 - [x] Stop when the catchup mechanism detects that it is overwriting the live messages
 - [x] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
 
+TODO
 Create a processor
 - [x] Verifies that there are no earlier unprocessed events for the same subject
 
@@ -61,6 +54,8 @@ Create a processor
 - [ ] Make server handle multiple topics
 - [X] Make threading mechanism pluggable
 - [ ] DST tests
+- [ ] Verifies that there are no gaps in the event sequence (check the sequence for the earliest unprocessed event until this one)
+- [ ] Verifies that there are no earlier unprocessed events for the same subject
 
 DB Debezium DONE
 LC Local Consumer DONE
