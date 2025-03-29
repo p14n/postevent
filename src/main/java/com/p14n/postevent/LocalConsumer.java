@@ -10,7 +10,12 @@ import io.debezium.engine.ChangeEvent;
 import java.io.IOException;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class LocalConsumer<OutT> implements AutoCloseable {
+
+    private static final Logger logger = LoggerFactory.getLogger(LocalConsumer.class);
     private final DebeziumServer debezium;
     private final MessageBroker<Event, OutT> broker;
     private final PostEventConfig config;
@@ -24,18 +29,27 @@ public class LocalConsumer<OutT> implements AutoCloseable {
     }
 
     public void start() throws IOException, InterruptedException {
-        db.setupAll(config.name());
-        Consumer<ChangeEvent<String, String>> consumer = record -> {
-            try {
-                Event event = changeEventToEvent(record);
-                if (event != null) {
-                    broker.publish(event);
+        logger.atInfo()
+                .addArgument(config.topic()) // renamed from name()
+                .log("Starting local consumer for {}");
+
+        try {
+            db.setupAll(config.topic()); // renamed from name()
+            Consumer<ChangeEvent<String, String>> consumer = record -> {
+                try {
+                    Event event = changeEventToEvent(record);
+                    if (event != null) {
+                        broker.publish(event);
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to process change event", e);
                 }
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to process change event", e);
-            }
-        };
-        debezium.start(config, consumer);
+            };
+            debezium.start(config, consumer);
+        } catch (IOException | InterruptedException e) {
+            logger.atError().setCause(e).log("Failed to start local consumer");
+            throw e;
+        }
     }
 
     public void stop() throws IOException {

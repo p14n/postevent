@@ -39,7 +39,7 @@ class LocalConsumerTest {
         broker = new EventMessageBroker();
         PostEventConfig config = new ConfigData(
                 "test",
-                "test",
+                "test_topic", // renamed from "test"
                 "localhost",
                 pg.getPort(),
                 "postgres",
@@ -90,7 +90,7 @@ class LocalConsumerTest {
                 "text/plain", "test-schema", "test-subject",
                 "test-data".getBytes());
 
-        Publisher.publish(testEvent, conn, "test");
+        Publisher.publish(testEvent, conn, "test_topic");
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive event within timeout");
 

@@ -60,11 +60,11 @@ public class RemoteConsumerExample {
 
             Thread.sleep(2000);
 
-            es.execute(() -> constructClient(ds, serverLatch, port, cfg.name()));
+            es.execute(() -> constructClient(ds, serverLatch, port, cfg.topic()));
 
             Thread.sleep(2000);
 
-            Publisher.publish(TestUtil.createTestEvent(1), ds, cfg.name());
+            Publisher.publish(TestUtil.createTestEvent(1), ds, cfg.topic());
 
             serverLatch.await();
 

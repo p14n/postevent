@@ -92,7 +92,7 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     @Override
     public void publish(TransactionalEvent message) {
         try {
-            Publisher.publish(message.event(), message.connection(), cfg.name());
+            Publisher.publish(message.event(), message.connection(), cfg.topic()); // renamed from name()
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

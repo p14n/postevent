@@ -22,15 +22,15 @@ public class DebeziumServer {
 
         public static Properties props(
                         String affinity,
-                        String name,
+                        String topic, // renamed from name
                         String dbHost,
                         String dbPort,
                         String dbUser,
                         String dbPassword,
                         String dbName) {
                 final Properties props = new Properties();
-                var affinityid = name + "_" + affinity;
-                props.setProperty("name", "postevent-" + name);
+                var affinityid = topic + "_" + affinity;
+                props.setProperty("name", "postevent-" + topic);
                 props.setProperty("connector.class", "io.debezium.connector.postgresql.PostgresConnector");
                 props.setProperty("offset.storage", "io.debezium.storage.jdbc.offset.JdbcOffsetBackingStore");
                 props.setProperty("offset.storage.jdbc.offset.table.name", "postevent.offsets");
@@ -45,11 +45,11 @@ public class DebeziumServer {
                 props.setProperty("database.user", dbUser);
                 props.setProperty("database.password", dbPassword);
                 props.setProperty("database.dbname", dbName);
-                props.setProperty("table.include.list", "postevent." + name);
-                props.setProperty("topic.prefix", "postevent-" + name);
+                props.setProperty("table.include.list", "postevent." + topic);
+                props.setProperty("topic.prefix", "postevent-" + topic);
                 props.setProperty("publication.autocreate.mode", "filtered");
                 props.setProperty("snapshot.mode", "no_data");
-                props.setProperty("slot.name", "postevent_" + name + "_" + affinity);
+                props.setProperty("slot.name", "postevent_" + topic + "_" + affinity);
                 props.setProperty("offset.storage.jdbc.offset.table.ddl",
                                 "CREATE TABLE IF NOT EXISTS %s (affinityid VARCHAR(255) NOT NULL, id VARCHAR(36) NOT NULL, "
                                                 +
@@ -80,7 +80,7 @@ public class DebeziumServer {
                         throw new IllegalStateException("Config must be set before starting the engine");
                 }
                 logger.atInfo()
-                                .addArgument(cfg.name())
+                                .addArgument(cfg.topic())
                                 .addArgument(cfg.affinity())
                                 .log("Starting Debezium engine for {} with affinity {}");
                 var started = new CountDownLatch(1);
@@ -93,7 +93,7 @@ public class DebeziumServer {
                                         }
                                 })
                                 .using(cfg.overrideProps() != null ? cfg.overrideProps()
-                                                : props(cfg.affinity(), cfg.name(), cfg.dbHost(),
+                                                : props(cfg.affinity(), cfg.topic(), cfg.dbHost(),
                                                                 String.valueOf(cfg.dbPort()), cfg.dbUser(),
                                                                 cfg.dbPassword(),
                                                                 cfg.dbName()))
