@@ -127,8 +127,6 @@ public class OrderedProcessor {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     long hwm = rs.getLong(1);
-                    LOGGER.info("HWMvv " + hwm);
-
                     return hwm >= event.idn() - 1;
                 }
                 return false;
@@ -169,12 +167,12 @@ public class OrderedProcessor {
         try {
             boolean success = processorFunction.apply(connection, event);
             if (!success) {
-                LOGGER.info("Processing failed for event " + event.id());
+                logger.atError().log("Processing failed for event " + event.id());
                 performRollback(connection);
             }
             return success;
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error processing event " + event.id(), e);
+            logger.atError().setCause(e).log("Error processing event " + event.id());
             performRollback(connection);
             return false;
         }
@@ -189,7 +187,7 @@ public class OrderedProcessor {
         try {
             connection.rollback();
         } catch (SQLException rollbackEx) {
-            LOGGER.log(Level.SEVERE, "Error rolling back transaction", rollbackEx);
+            logger.atError().setCause(rollbackEx).log("Error rolling back transaction");
         }
     }
 
@@ -203,7 +201,7 @@ public class OrderedProcessor {
         try {
             connection.setAutoCommit(autoCommit);
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error restoring auto-commit state", e);
+            logger.atError().setCause(e).log("Error restoring auto-commit state");
         }
     }
 }

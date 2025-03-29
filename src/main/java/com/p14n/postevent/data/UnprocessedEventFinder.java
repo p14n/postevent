@@ -84,7 +84,7 @@ public class UnprocessedEventFinder {
      * @throws SQLException if a database error occurs
      */
     public List<Event> findUnprocessedEventsWithLimit(Connection connection, int limit) throws SQLException {
-        LOGGER.info("Finding up to " + limit + " unprocessed events");
+        logger.atInfo().log("Finding up to " + limit + " unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
                 "time, idn, topic FROM postevent.messages " +
@@ -97,7 +97,7 @@ public class UnprocessedEventFinder {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<Event> events = processResultSet(rs);
-                LOGGER.info("Found " + events.size() + " unprocessed events");
+                logger.atInfo().log("Found " + events.size() + " unprocessed events");
                 return events;
             }
         }
@@ -168,7 +168,7 @@ public class UnprocessedEventFinder {
 
             if (rs.next()) {
                 int count = rs.getInt(1);
-                LOGGER.info("Found " + count + " unprocessed events");
+                logger.atInfo().log("Found " + count + " unprocessed events");
                 return count;
             }
 
