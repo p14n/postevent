@@ -70,7 +70,7 @@ class LocalConsumerTest {
         AtomicReference<Event> receivedEvent = new AtomicReference<>();
 
         // Setup consumer
-        broker.subscribe(new MessageSubscriber<Event>() {
+        broker.subscribe("test_topic", new MessageSubscriber<Event>() {
             @Override
             public void onMessage(Event event) {
                 receivedEvent.set(event);

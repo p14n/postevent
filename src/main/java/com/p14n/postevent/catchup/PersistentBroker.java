@@ -33,7 +33,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
     }
 
     @Override
-    public void publish(Event event) {
+    public void publish(String topic, Event event) {
         Connection conn = null;
         try {
             conn = dataSource.getConnection();
@@ -62,7 +62,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
             // Forward to actual subscriber after successful persistence
             if (updates > 0) {
                 logger.atDebug().log("Forwarding event to target broker");
-                targetBroker.publish(event);
+                targetBroker.publish(topic, event);
             }
 
         } catch (SQLException e) {
@@ -74,13 +74,13 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<OutT> subscriber) {
-        return targetBroker.subscribe(subscriber);
+    public boolean subscribe(String topic, MessageSubscriber<OutT> subscriber) {
+        return targetBroker.subscribe(topic, subscriber);
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<OutT> subscriber) {
-        return targetBroker.unsubscribe(subscriber);
+    public boolean unsubscribe(String topic, MessageSubscriber<OutT> subscriber) {
+        return targetBroker.unsubscribe(topic, subscriber);
     }
 
     @Override
@@ -96,6 +96,6 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
     @Override
     public void onMessage(Event message) {
         logger.atDebug().log("Received event for persistence");
-        publish(message);
+        publish(message.topic(), message);
     }
 }

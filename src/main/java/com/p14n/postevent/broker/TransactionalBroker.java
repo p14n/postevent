@@ -5,6 +5,8 @@ import com.p14n.postevent.processor.OrderedProcessor;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Set;
 
 public class TransactionalBroker extends DefaultMessageBroker<Event, TransactionalEvent> {
     private final DataSource ds;
@@ -20,14 +22,13 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
     }
 
     @Override
-    public void publish(Event message) {
-
-        if (!canProcess(message)) {
+    public void publish(String topic, Event message) {
+        if (!canProcess(topic, message)) {
             return;
         }
 
         // Deliver to all subscribers
-        for (MessageSubscriber<TransactionalEvent> subscriber : subscribers) {
+        for (MessageSubscriber<TransactionalEvent> subscriber : topicSubscribers.get(topic)) {
             try (Connection c = ds.getConnection()) {
                 var op = new OrderedProcessor((connection, event) -> {
                     try {

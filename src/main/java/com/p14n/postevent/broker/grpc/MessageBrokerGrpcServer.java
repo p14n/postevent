@@ -78,10 +78,10 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             ServerCallStreamObserver<EventResponse> responseCallObserver = (ServerCallStreamObserver<EventResponse>) responseObserver;
             responseCallObserver.setOnCancelHandler(() -> {
                 cancelled.set(true);
-                messageBroker.unsubscribe(subscriber);
+                messageBroker.unsubscribe(topic, subscriber);
                 logger.atInfo().log("Unsubscribed from topic: {}", topic);
             });
-            messageBroker.subscribe(subscriber);
+            messageBroker.subscribe(topic, subscriber);
 
             logger.atInfo().log("Subscribed to topic: {}", topic);
         } catch (Exception e) {

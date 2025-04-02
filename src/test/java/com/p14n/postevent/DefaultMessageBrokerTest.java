@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 class DefaultMessageBrokerTest {
 
     private volatile DefaultMessageBroker<String, String> broker;
+    private final String TOPIC = "topic";
 
     @AfterEach
     void tearDown() {
@@ -69,10 +70,10 @@ class DefaultMessageBrokerTest {
             }
         };
 
-        broker.subscribe(subscriber1);
-        broker.subscribe(subscriber2);
+        broker.subscribe(TOPIC, subscriber1);
+        broker.subscribe(TOPIC, subscriber2);
 
-        broker.publish("test");
+        broker.publish(TOPIC, "test");
 
         assertTrue(counter1.await(1, TimeUnit.SECONDS));
         assertTrue(counter2.await(1, TimeUnit.SECONDS));
@@ -80,7 +81,7 @@ class DefaultMessageBrokerTest {
 
     @Test
     void shouldSilentlyDropMessagesWithNoSubscribers() {
-        broker.publish("test"); // Should not throw
+        broker.publish(TOPIC, "test"); // Should not throw
     }
 
     @Test
@@ -102,8 +103,8 @@ class DefaultMessageBrokerTest {
             }
         };
 
-        broker.subscribe(erroringSubscriber);
-        broker.publish("test");
+        broker.subscribe(TOPIC, erroringSubscriber);
+        broker.publish(TOPIC, "test");
 
         assertTrue(counter.await(1, TimeUnit.SECONDS));
         assertSame(testException, caughtError.get());
@@ -126,14 +127,14 @@ class DefaultMessageBrokerTest {
             }
         };
 
-        broker.subscribe(subscriber);
+        broker.subscribe(TOPIC, subscriber);
 
         // Create publisher threads
         for (int i = 0; i < threadCount; i++) {
             new Thread(() -> {
                 try {
                     startLatch.await();
-                    broker.publish("test");
+                    broker.publish(TOPIC, "test");
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -147,8 +148,8 @@ class DefaultMessageBrokerTest {
     @Test
     void shouldPreventPublishingAfterClose() {
         broker.close();
-        assertThrows(IllegalStateException.class, () -> broker.publish("test"));
-        assertThrows(IllegalStateException.class, () -> broker.subscribe(new MessageSubscriber<>() {
+        assertThrows(IllegalStateException.class, () -> broker.publish(TOPIC, "test"));
+        assertThrows(IllegalStateException.class, () -> broker.subscribe(TOPIC, new MessageSubscriber<>() {
             @Override
             public void onMessage(String message) {
             }
@@ -175,12 +176,12 @@ class DefaultMessageBrokerTest {
             }
         };
 
-        broker.subscribe(subscriber);
-        broker.publish("first message");
+        broker.subscribe(TOPIC, subscriber);
+        broker.publish(TOPIC, "first message");
         assertTrue(counter.await(1, TimeUnit.SECONDS), "Should receive message while subscribed");
 
-        broker.unsubscribe(subscriber);
-        broker.publish("second message");
+        broker.unsubscribe(TOPIC, subscriber);
+        broker.publish(TOPIC, "second message");
         Thread.sleep(100);
         assertEquals(1, messageCount.get(), "Should not receive message after unsubscribe");
     }

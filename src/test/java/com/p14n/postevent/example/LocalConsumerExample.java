@@ -35,7 +35,7 @@ public class LocalConsumerExample {
                         "postgres",
                         "postgres"), mb)) {
 
-            mb.subscribe(message -> {
+            mb.subscribe("topic", message -> {
                 logger.atInfo().log("********* Message received *************");
                 l.countDown();
             });

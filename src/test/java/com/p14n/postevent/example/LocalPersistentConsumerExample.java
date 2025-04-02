@@ -28,7 +28,7 @@ public class LocalPersistentConsumerExample {
 
             lc.start();
 
-            lc.subscribe(message -> {
+            lc.subscribe("topic", message -> {
                 System.err.println("********* Message received *************");
                 l.countDown();
             });

@@ -58,8 +58,8 @@ class DeterministicConsumerTest {
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(TOPIC, executor);
-            client.start(dataSource, "localhost", PORT);
+            var client = new ConsumerClient(executor);
+            client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
             Set<String> receivedEventIds = ConcurrentHashMap.newKeySet();
@@ -73,7 +73,7 @@ class DeterministicConsumerTest {
             AtomicInteger failmod = new AtomicInteger(5);
 
             // Setup client subscriber
-            client.subscribe((TransactionalEvent event) -> {
+            client.subscribe(TOPIC, (TransactionalEvent event) -> {
                 var eventIdn = event.event().idn();
                 if (eventIdn % failmod.getAndIncrement() == 0) {
                     throw new RuntimeException("Fell over intentionally");
@@ -162,8 +162,8 @@ class DeterministicConsumerTest {
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(TOPIC, executor);
-            client.start(dataSource, "localhost", PORT);
+            var client = new ConsumerClient(executor);
+            client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             logger.atInfo().log("Testing with seed: {}", seed);
             Random random = new Random(seed);
@@ -183,7 +183,7 @@ class DeterministicConsumerTest {
             AtomicInteger failmod = new AtomicInteger(5);
 
             // Setup client subscriber
-            client.subscribe((TransactionalEvent event) -> {
+            client.subscribe(TOPIC, (TransactionalEvent event) -> {
                 var eventIdn = event.event().idn();
                 if (eventIdn % failmod.getAndIncrement() == 0) {
                     throw new RuntimeException("Fell over intentionally");

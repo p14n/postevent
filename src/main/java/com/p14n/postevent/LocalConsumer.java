@@ -39,7 +39,7 @@ public class LocalConsumer<OutT> implements AutoCloseable {
                 try {
                     Event event = changeEventToEvent(record);
                     if (event != null) {
-                        broker.publish(event);
+                        broker.publish(event.topic(), event);
                     }
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to process change event", e);

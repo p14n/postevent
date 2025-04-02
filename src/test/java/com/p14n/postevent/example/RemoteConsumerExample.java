@@ -27,9 +27,9 @@ public class RemoteConsumerExample {
 
     private static void constructClient(DataSource ds, CountDownLatch l, int port, String topic) {
 
-        try (ConsumerClient client = new ConsumerClient(topic)) {
-            client.start(ds, "localhost", port);
-            client.subscribe(message -> {
+        try (ConsumerClient client = new ConsumerClient()) {
+            client.start(Set.of(topic), ds, "localhost", port);
+            client.subscribe(topic, message -> {
                 System.err.println("********* Message received *************");
                 l.countDown();
             });

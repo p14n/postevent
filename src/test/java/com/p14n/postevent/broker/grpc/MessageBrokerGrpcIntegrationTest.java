@@ -32,6 +32,7 @@ public class MessageBrokerGrpcIntegrationTest {
 
     private static final int PORT = 50052;
     private static final String HOST = "localhost";
+    private static final String TOPIC = "topic";
 
     private Server server;
     private MessageBrokerGrpcClient client;
@@ -55,7 +56,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(HOST, PORT, "*");
+        client = new MessageBrokerGrpcClient(HOST, PORT);
     }
 
     @AfterEach
@@ -77,7 +78,7 @@ public class MessageBrokerGrpcIntegrationTest {
         AtomicBoolean errorOccurred = new AtomicBoolean(false);
 
         // Add a subscriber to the client to collect events
-        client.subscribe(new MessageSubscriber<Event>() {
+        client.subscribe(TOPIC, new MessageSubscriber<Event>() {
             @Override
             public void onMessage(Event event) {
                 receivedEvents.add(event);
@@ -97,7 +98,7 @@ public class MessageBrokerGrpcIntegrationTest {
             Event event = createSampleEvent(i + 1);
 
             logger.info("Publishing event: " + i + " " + event.id());
-            messageBroker.publish(event);
+            messageBroker.publish(TOPIC, event);
             logger.info("Published event: " + event.id());
             // Small delay to avoid overwhelming the stream
             Thread.sleep(50);
@@ -150,12 +151,12 @@ public class MessageBrokerGrpcIntegrationTest {
             }
         };
 
-        client.subscribe(subscriber);
+        client.subscribe(TOPIC, subscriber);
         Thread.sleep(200);
 
         // Publish an event
         Event event1 = createSampleEvent(1);
-        messageBroker.publish(event1);
+        messageBroker.publish(TOPIC, event1);
 
         // Wait for the event to be received
         logger.info("Waiting for event to be received");
@@ -164,12 +165,12 @@ public class MessageBrokerGrpcIntegrationTest {
 
         // Unsubscribe
         logger.info("Unsubscribing from events");
-        client.unsubscribe(subscriber);
+        client.unsubscribe(TOPIC, subscriber);
         logger.info("Unsubscribed from events");
 
         // Publish another event
         Event event2 = createSampleEvent(2);
-        messageBroker.publish(event2);
+        messageBroker.publish(TOPIC, event2);
 
         // Wait a bit to see if the event is received
         logger.info("Waiting for secondevent to be received");
@@ -200,7 +201,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 data,
                 time,
                 idn,
-                "topic");
+                TOPIC);
     }
 
     /**
@@ -210,10 +211,10 @@ public class MessageBrokerGrpcIntegrationTest {
         private final List<Event> publishedEvents = new ArrayList<>();
 
         @Override
-        public void publish(Event event) {
+        public void publish(String topic, Event event) {
             publishedEvents.add(event);
             logger.info("Published event in test broker: " + event.id());
-            super.publish(event);
+            super.publish(topic, event);
         }
 
         @Override

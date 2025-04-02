@@ -1,14 +1,14 @@
 package com.p14n.postevent.broker;
 
-import java.util.concurrent.Callable;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<InT, OutT>, AutoCloseable {
 
-    protected final CopyOnWriteArraySet<MessageSubscriber<OutT>> subscribers = new CopyOnWriteArraySet<>();
+    protected final ConcurrentHashMap<String, Set<MessageSubscriber<OutT>>> topicSubscribers = new ConcurrentHashMap<>();
     protected final AtomicBoolean closed = new AtomicBoolean(false);
-
     private final AsyncExecutor asyncExecutor;
 
     public DefaultMessageBroker() {
@@ -19,7 +19,7 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
         this.asyncExecutor = asyncExecutor;
     }
 
-    protected boolean canProcess(InT message) {
+    protected boolean canProcess(String topic, InT message) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
@@ -28,42 +28,43 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             throw new IllegalArgumentException("Message cannot be null");
         }
 
-        // If no subscribers, message is silently dropped
-        if (subscribers.isEmpty()) {
-            return false;
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic cannot be null");
         }
-        return true;
 
+        // If no subscribers for this topic, message is silently dropped
+        return topicSubscribers.containsKey(topic) && !topicSubscribers.get(topic).isEmpty();
     }
 
     @Override
-    public void publish(InT message) {
-
-        if (!canProcess(message)) {
+    public void publish(String topic, InT message) {
+        if (!canProcess(topic, message)) {
             return;
         }
-        // Deliver to all subscribers
-        for (MessageSubscriber<OutT> subscriber : subscribers) {
 
-            asyncExecutor.submit(() -> {
-                try {
-                    subscriber.onMessage(convert(message));
-                    return null;
-                } catch (Exception e) {
+        // Deliver to all subscribers for this topic
+        Set<MessageSubscriber<OutT>> subscribers = topicSubscribers.get(topic);
+        if (subscribers != null) {
+            for (MessageSubscriber<OutT> subscriber : subscribers) {
+                asyncExecutor.submit(() -> {
                     try {
-                        subscriber.onError(e);
-                    } catch (Exception ignored) {
-                        // If error handling fails, we ignore it to protect other subscribers
+                        subscriber.onMessage(convert(message));
+                        return null;
+                    } catch (Exception e) {
+                        try {
+                            subscriber.onError(e);
+                        } catch (Exception ignored) {
+                            // If error handling fails, we ignore it to protect other subscribers
+                        }
                     }
-                }
-                return null;
-            });
-
+                    return null;
+                });
+            }
         }
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<OutT> subscriber) {
+    public boolean subscribe(String topic, MessageSubscriber<OutT> subscriber) {
         if (closed.get()) {
             throw new IllegalStateException("Broker is closed");
         }
@@ -72,31 +73,39 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             throw new IllegalArgumentException("Subscriber cannot be null");
         }
 
-        return subscribers.add(subscriber);
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic cannot be null");
+        }
+
+        return topicSubscribers
+                .computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>())
+                .add(subscriber);
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<OutT> subscriber) {
+    public boolean unsubscribe(String topic, MessageSubscriber<OutT> subscriber) {
         if (subscriber == null) {
             throw new IllegalArgumentException("Subscriber cannot be null");
         }
 
-        return subscribers.remove(subscriber);
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic cannot be null");
+        }
+
+        Set<MessageSubscriber<OutT>> subscribers = topicSubscribers.get(topic);
+        if (subscribers != null) {
+            boolean removed = subscribers.remove(subscriber);
+            if (subscribers.isEmpty()) {
+                topicSubscribers.remove(topic);
+            }
+            return removed;
+        }
+        return false;
     }
 
     @Override
     public void close() {
-        if (closed.compareAndSet(false, true)) {
-            // Notify all subscribers of shutdown
-            Throwable shutdownError = new IllegalStateException("Message broker is shutting down");
-            for (MessageSubscriber<OutT> subscriber : subscribers) {
-                try {
-                    subscriber.onError(shutdownError);
-                } catch (Exception ignored) {
-                    // Ignore errors during shutdown notification
-                }
-            }
-            subscribers.clear();
-        }
+        closed.set(true);
+        topicSubscribers.clear();
     }
 }

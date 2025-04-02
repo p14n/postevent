@@ -90,7 +90,7 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     }
 
     @Override
-    public void publish(TransactionalEvent message) {
+    public void publish(String topic, TransactionalEvent message) {
         try {
             Publisher.publish(message.event(), message.connection(), message.event().topic()); // renamed from name()
         } catch (SQLException e) {
@@ -99,13 +99,13 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<TransactionalEvent> subscriber) {
-        return tb.subscribe(subscriber);
+    public boolean subscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
+        return tb.subscribe(topic, subscriber);
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<TransactionalEvent> subscriber) {
-        return tb.unsubscribe(subscriber);
+    public boolean unsubscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
+        return tb.unsubscribe(topic, subscriber);
     }
 
     @Override

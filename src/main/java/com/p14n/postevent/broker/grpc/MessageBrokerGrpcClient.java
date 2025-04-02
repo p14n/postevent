@@ -9,7 +9,10 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,26 +24,24 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
     private static final Logger logger = LoggerFactory.getLogger(MessageBrokerGrpcClient.class);
 
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;
-    private final AtomicBoolean subscribed = new AtomicBoolean(false);
+    private final Set<String> subscribed = ConcurrentHashMap.newKeySet();;
 
     ManagedChannel channel;
-    String topic;
 
-    public MessageBrokerGrpcClient(String host, int port, String topic) {
+    public MessageBrokerGrpcClient(String host, int port) {
         this(ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
-                .build(), topic);
+                .build());
     }
 
-    public MessageBrokerGrpcClient(ManagedChannel channel, String topic) {
+    public MessageBrokerGrpcClient(ManagedChannel channel) {
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
-        this.topic = topic;
     }
 
-    public void subscribeToEvents() {
+    public void subscribeToEvents(String topic) {
         SubscriptionRequest request = SubscriptionRequest.newBuilder()
                 .setTopic(topic)
                 .build();
@@ -51,7 +52,7 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
                 try {
                     logger.atDebug().log(() -> "Received event: " + response.getId());
                     Event event = convertFromGrpcEvent(response);
-                    publish(event);
+                    publish(topic, event);
                 } catch (Exception e) {
                     logger.atError().setCause(e).log("Error processing event");
                 }
@@ -60,18 +61,18 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
             @Override
             public void onError(Throwable t) {
                 logger.atError().setCause(t).log("Error in event stream");
-                subscribed.set(false);
+                subscribed.remove(topic);
             }
 
             @Override
             public void onCompleted() {
                 logger.atInfo().log("Stream completed");
-                subscribed.set(false);
+                subscribed.remove(topic);
             }
         };
 
         asyncStub.subscribeToEvents(request, responseObserver);
-        subscribed.set(true);
+        subscribed.add(topic);
         // Send the subscription request
 
     }
@@ -89,21 +90,21 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
                 grpcEvent.getDataSchema(),
                 grpcEvent.getSubject(),
                 grpcEvent.getData().toByteArray(),
-                time.toInstant(),
+                time == null ? Instant.now() : time.toInstant(),
                 grpcEvent.getIdn(),
                 grpcEvent.getTopic());
     }
 
     @Override
-    public void publish(Event message) {
-        super.publish(message);
+    public void publish(String topic, Event message) {
+        super.publish(topic, message);
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<Event> subscriber) {
-        if (super.subscribe(subscriber)) {
-            if (!subscribed.get()) {
-                subscribeToEvents();
+    public boolean subscribe(String topic, MessageSubscriber<Event> subscriber) {
+        if (super.subscribe(topic, subscriber)) {
+            if (!subscribed.contains(topic)) {
+                subscribeToEvents(topic);
             }
             return true;
         }
@@ -111,10 +112,10 @@ public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoC
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<Event> subscriber) {
-        boolean unsubscribed = super.unsubscribe(subscriber);
-        if (subscribers.isEmpty()) {
-            subscribed.set(false);
+    public boolean unsubscribe(String topic, MessageSubscriber<Event> subscriber) {
+        boolean unsubscribed = super.unsubscribe(topic, subscriber);
+        if (topicSubscribers.isEmpty()) {
+            subscribed.remove(topic);
             this.channel.shutdownNow();
             try {
                 this.channel.awaitTermination(5, TimeUnit.SECONDS);

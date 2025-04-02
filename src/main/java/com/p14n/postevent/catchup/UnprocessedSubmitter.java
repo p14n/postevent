@@ -27,7 +27,7 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
         try (Connection c = ds.getConnection()) {
             var events = unprocessedEventFinder.findUnprocessedEvents(c);
             for (var e : events) {
-                targetBroker.publish(e);
+                targetBroker.publish(e.topic(), e);
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
