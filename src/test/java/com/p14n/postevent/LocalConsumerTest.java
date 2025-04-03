@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.sql.Connection;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,7 +40,7 @@ class LocalConsumerTest {
         broker = new EventMessageBroker();
         PostEventConfig config = new ConfigData(
                 "test",
-                "test",
+                Set.of("test_topic"), // renamed from "test"
                 "localhost",
                 pg.getPort(),
                 "postgres",
@@ -69,7 +70,7 @@ class LocalConsumerTest {
         AtomicReference<Event> receivedEvent = new AtomicReference<>();
 
         // Setup consumer
-        broker.subscribe(new MessageSubscriber<Event>() {
+        broker.subscribe("test_topic", new MessageSubscriber<Event>() {
             @Override
             public void onMessage(Event event) {
                 receivedEvent.set(event);
@@ -90,7 +91,7 @@ class LocalConsumerTest {
                 "text/plain", "test-schema", "test-subject",
                 "test-data".getBytes());
 
-        Publisher.publish(testEvent, conn, "test");
+        Publisher.publish(testEvent, conn, "test_topic");
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive event within timeout");
 

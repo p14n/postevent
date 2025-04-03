@@ -1,9 +1,10 @@
 package com.p14n.postevent.data;
 
 import java.util.Properties;
+import java.util.Set;
 
 public record ConfigData(String affinity,
-        String name,
+        Set<String> topics, // renamed from name
         String dbHost,
         int dbPort,
         String dbUser,
@@ -11,13 +12,12 @@ public record ConfigData(String affinity,
         String dbName,
         Properties overrideProps) implements PostEventConfig {
     public ConfigData(String affinity,
-                      String name,
-                      String dbHost,
-                      int dbPort,
-                      String dbUser,
-                      String dbPassword,
-                      String dbName){
-        this(affinity,name,dbHost,dbPort,dbUser,dbPassword,dbName,null);
-
+            Set<String> topics, // renamed from name
+            String dbHost,
+            int dbPort,
+            String dbUser,
+            String dbPassword,
+            String dbName) {
+        this(affinity, topics, dbHost, dbPort, dbUser, dbPassword, dbName, null);
     }
 }

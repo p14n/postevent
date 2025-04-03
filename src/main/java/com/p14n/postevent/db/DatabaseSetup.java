@@ -1,7 +1,6 @@
 package com.p14n.postevent.db;
 
 import com.p14n.postevent.data.PostEventConfig;
-import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.zaxxer.hikari.HikariDataSource;
 
 import javax.sql.DataSource;
@@ -13,6 +12,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Set;
 
 public class DatabaseSetup {
 
@@ -32,11 +32,16 @@ public class DatabaseSetup {
         this.password = password;
     }
 
-    public void setupAll(String topic) {
+    public DatabaseSetup setupAll(Set<String> topics) {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
         createContiguousHwmTableIfNotExists();
-        createTableIfNotExists(topic);
+        topics.stream().forEach(this::createTableIfNotExists);
+        return this;
+    }
+
+    public DatabaseSetup setupAll(String topic) {
+        return setupAll(Set.of(topic));
     }
 
     public DatabaseSetup createSchemaIfNotExists() {
@@ -95,7 +100,7 @@ public class DatabaseSetup {
 
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.messages (
-                        idn bigint PRIMARY KEY NOT NULL,
+                        idn bigint NOT NULL,
                         topic VARCHAR(255) NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
@@ -106,7 +111,7 @@ public class DatabaseSetup {
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE,
                         status VARCHAR(1) DEFAULT 'u',
-                        UNIQUE (idn, topic)
+                        PRIMARY KEY (topic,idn)
                     )""";
 
             stmt.execute(sql);

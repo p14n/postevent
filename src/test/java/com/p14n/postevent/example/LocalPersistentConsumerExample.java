@@ -7,6 +7,7 @@ import com.p14n.postevent.data.ConfigData;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
 public class LocalPersistentConsumerExample {
@@ -16,7 +17,7 @@ public class LocalPersistentConsumerExample {
         try (var pg = ExampleUtil.embeddedPostgres();
                 var lc = new LocalPersistentConsumer(pg.getPostgresDatabase(), new ConfigData(
                         "local",
-                        "topic",
+                        Set.of("topic"),
                         "127.0.0.1",
                         pg.getPort(),
                         "postgres",
@@ -27,7 +28,7 @@ public class LocalPersistentConsumerExample {
 
             lc.start();
 
-            lc.subscribe(message -> {
+            lc.subscribe("topic", message -> {
                 System.err.println("********* Message received *************");
                 l.countDown();
             });

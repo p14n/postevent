@@ -23,7 +23,7 @@ import javax.sql.DataSource;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerClient implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
@@ -32,26 +32,25 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     private AsyncExecutor asyncExecutor;
     private List<AutoCloseable> closeables;
     private TransactionalBroker tb;
-    private String topic;
+    SystemEventBroker seb;
 
-    public ConsumerClient(String topic, AsyncExecutor asyncExecutor) {
+    public ConsumerClient(AsyncExecutor asyncExecutor) {
         this.asyncExecutor = asyncExecutor;
-        this.topic = topic;
     }
 
-    public ConsumerClient(String topic) {
-        this(topic, new DefaultExecutor(2));
+    public ConsumerClient() {
+        this(new DefaultExecutor(2));
     }
 
-    public void start(DataSource ds, String host, int port) {
-        start(ds, ManagedChannelBuilder.forAddress(host, port)
+    public void start(Set<String> topics, DataSource ds, String host, int port) {
+        start(topics, ds, ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
                 .build());
     }
 
-    public void start(DataSource ds, ManagedChannel channel) {
+    public void start(Set<String> topics, DataSource ds, ManagedChannel channel) {
         logger.atInfo().log("Starting consumer client");
 
         if (tb != null) {
@@ -61,12 +60,14 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
 
         try {
             tb = new TransactionalBroker(ds, asyncExecutor);
-            var seb = new SystemEventBroker(asyncExecutor);
+            seb = new SystemEventBroker(asyncExecutor);
             var pb = new PersistentBroker<>(tb, ds, seb);
-            var client = new MessageBrokerGrpcClient(channel, topic);
+            var client = new MessageBrokerGrpcClient(channel);
             var catchupClient = new CatchupGrpcClient(channel);
 
-            client.subscribe(pb);
+            for (var topic : topics) {
+                client.subscribe(topic, pb);
+            }
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
             seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
 
@@ -105,7 +106,7 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     }
 
     @Override
-    public void publish(TransactionalEvent message) {
+    public void publish(String topic, TransactionalEvent message) {
         try {
             Publisher.publish(message.event(), message.connection(), topic);
         } catch (SQLException e) {
@@ -114,13 +115,15 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     }
 
     @Override
-    public boolean subscribe(MessageSubscriber<TransactionalEvent> subscriber) {
-        return tb.subscribe(subscriber);
+    public boolean subscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
+        var subscribed = tb.subscribe(topic, subscriber);
+        seb.publish(SystemEvent.CatchupRequired.withTopic(topic));
+        return subscribed;
     }
 
     @Override
-    public boolean unsubscribe(MessageSubscriber<TransactionalEvent> subscriber) {
-        return tb.unsubscribe(subscriber);
+    public boolean unsubscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
+        return tb.unsubscribe(topic, subscriber);
     }
 
     @Override

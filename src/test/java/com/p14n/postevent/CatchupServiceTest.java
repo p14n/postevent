@@ -140,8 +140,8 @@ public class CatchupServiceTest {
             }
 
             createProcessingGap(connection);
-            logEventsInTopicTable(connection);
-            logEventsInMessagesTable(connection);
+            TestUtil.logEventsInTopicTable(connection, log, TEST_TOPIC);
+            TestUtil.logEventsInMessagesTable(connection, log);
             // Process initial events
             log.debug("Processing initial events");
             int initialProcessed = catchupService.catchup(TEST_TOPIC);
@@ -167,7 +167,7 @@ public class CatchupServiceTest {
 
             // Log the actual events in the table for debugging
             log.debug("Checking events in the table:");
-            logEventsInMessagesTable(connection);
+            TestUtil.logEventsInMessagesTable(connection, log);
 
             // There should be 4 new events in the messages table as the processing gap
             // created a gap of 4 events
@@ -231,8 +231,8 @@ public class CatchupServiceTest {
                 Publisher.publish(event, connection, TEST_TOPIC);
             }
             copyEventsToMessages(connection, 5);
-            logEventsInTopicTable(connection);
-            logEventsInMessagesTable(connection);
+            TestUtil.logEventsInTopicTable(connection, log, TEST_TOPIC);
+            TestUtil.logEventsInMessagesTable(connection, log);
 
             // Initialize HWM to 0
             initializeHwm(connection, TEST_TOPIC, 0);
@@ -293,34 +293,6 @@ public class CatchupServiceTest {
                 return rs.getInt(1);
             }
             return 0;
-        }
-    }
-
-    private void logEventsInMessagesTable(Connection connection) throws Exception {
-        log.debug("postevent.messages contents:");
-        String sql = "SELECT idn, id, source FROM postevent.messages ORDER BY idn";
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-                ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                log.debug("Event: idn={}, id={}, source={}",
-                        rs.getLong("idn"),
-                        rs.getString("id"),
-                        rs.getString("source"));
-            }
-        }
-    }
-
-    private void logEventsInTopicTable(Connection connection) throws Exception {
-        log.debug("postevent.test_events contents:");
-        String sql = "SELECT idn, id, source FROM postevent.test_events ORDER BY idn";
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-                ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                log.debug("Event: idn={}, id={}, source={}",
-                        rs.getLong("idn"),
-                        rs.getString("id"),
-                        rs.getString("source"));
-            }
         }
     }
 

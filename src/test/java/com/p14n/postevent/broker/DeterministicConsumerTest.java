@@ -7,15 +7,8 @@ import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.example.ExampleUtil;
 
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import net.jqwik.api.*;
-import net.jqwik.api.lifecycle.AfterProperty;
-import net.jqwik.api.lifecycle.BeforeProperty;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-
-import javax.sql.DataSource;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -45,7 +38,7 @@ class DeterministicConsumerTest {
 
             var config = new ConfigData(
                     TOPIC,
-                    TOPIC,
+                    Set.of(TOPIC),
                     "127.0.0.1",
                     pg.getPort(),
                     "postgres",
@@ -58,8 +51,8 @@ class DeterministicConsumerTest {
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(TOPIC, executor);
-            client.start(dataSource, "localhost", PORT);
+            var client = new ConsumerClient(executor);
+            client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
             Set<String> receivedEventIds = ConcurrentHashMap.newKeySet();
@@ -73,7 +66,7 @@ class DeterministicConsumerTest {
             AtomicInteger failmod = new AtomicInteger(5);
 
             // Setup client subscriber
-            client.subscribe((TransactionalEvent event) -> {
+            client.subscribe(TOPIC, (TransactionalEvent event) -> {
                 var eventIdn = event.event().idn();
                 if (eventIdn % failmod.getAndIncrement() == 0) {
                     throw new RuntimeException("Fell over intentionally");
@@ -115,6 +108,13 @@ class DeterministicConsumerTest {
             }
             Thread.sleep(2000);
 
+            try (var connection = dataSource.getConnection()) {
+                connection.setAutoCommit(false);
+                TestUtil.logEventsInTopicTable(connection, logger, TOPIC);
+                TestUtil.logEventsInMessagesTable(connection, logger);
+                TestUtil.logEventsInHwmTable(connection, logger);
+            }
+
             logger.atInfo().log("Test completed in {} ticks", tickCount);
             logger.atInfo().log("Published events: {}", publishedEventIds.size());
             logger.atInfo().log("Received events: {}", receivedEventIds.size());
@@ -147,7 +147,7 @@ class DeterministicConsumerTest {
 
             var config = new ConfigData(
                     TOPIC,
-                    TOPIC,
+                    Set.of(TOPIC),
                     "127.0.0.1",
                     pg.getPort(),
                     "postgres",
@@ -162,8 +162,8 @@ class DeterministicConsumerTest {
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(TOPIC, executor);
-            client.start(dataSource, "localhost", PORT);
+            var client = new ConsumerClient(executor);
+            client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             logger.atInfo().log("Testing with seed: {}", seed);
             Random random = new Random(seed);
@@ -183,7 +183,7 @@ class DeterministicConsumerTest {
             AtomicInteger failmod = new AtomicInteger(5);
 
             // Setup client subscriber
-            client.subscribe((TransactionalEvent event) -> {
+            client.subscribe(TOPIC, (TransactionalEvent event) -> {
                 var eventIdn = event.event().idn();
                 if (eventIdn % failmod.getAndIncrement() == 0) {
                     throw new RuntimeException("Fell over intentionally");
@@ -247,6 +247,159 @@ class DeterministicConsumerTest {
             }
             close(server);
             close(client);
+            close(executor);
+        }
+    }
+
+    @Property(tries = 5)
+    void testMultipleTopicsWithDedicatedClients(@ForAll("randomSeeds") long seed) throws Exception {
+        logger.atInfo().log("Testing with seed: {}", seed);
+        Random random = new Random(seed);
+        var executor = new TestAsyncExecutor();
+
+        String topic1 = "test_topic_one";
+        String topic2 = "test_topic_two";
+
+        try (var pg = ExampleUtil.embeddedPostgres()) {
+            var dataSource = pg.getPostgresDatabase();
+
+            // Configure server with both topics
+            var config = new ConfigData(
+                    "server1",
+                    Set.of(topic1, topic2),
+                    "127.0.0.1",
+                    pg.getPort(),
+                    "postgres",
+                    "postgres",
+                    "postgres");
+
+            // Start server
+            var server = new ConsumerServer(dataSource, config, executor);
+            server.start(PORT);
+
+            // Start client for topic1
+            var client1 = new ConsumerClient(executor);
+            client1.start(Set.of(topic1), dataSource, "localhost", PORT);
+
+            // Start client for topic2
+            var client2 = new ConsumerClient(executor);
+            client2.start(Set.of(topic2), dataSource, "localhost", PORT);
+
+            // Track received events per topic
+            Set<String> receivedEventIdsTopic1 = ConcurrentHashMap.newKeySet();
+            Set<String> receivedEventIdsTopic2 = ConcurrentHashMap.newKeySet();
+            Set<String> publishedEventIdsTopic1 = ConcurrentHashMap.newKeySet();
+            Set<String> publishedEventIdsTopic2 = ConcurrentHashMap.newKeySet();
+
+            // Generate random number of events per topic (1-50 each)
+            int numberOfEventsTopic1 = random.nextInt(50) + 1;
+            int numberOfEventsTopic2 = random.nextInt(50) + 1;
+            int totalEvents = numberOfEventsTopic1 + numberOfEventsTopic2;
+
+            var eventsLatch = new CountDownLatch(totalEvents);
+            logger.atInfo().log("Testing with {} events for topic1 and {} events for topic2",
+                    numberOfEventsTopic1, numberOfEventsTopic2);
+
+            // Setup client1 subscriber
+            client1.subscribe(topic1, (TransactionalEvent event) -> {
+                var eventId = event.event().id();
+                receivedEventIdsTopic1.add(eventId);
+                logger.atInfo().log("Topic1 received event: {} {}", eventId, receivedEventIdsTopic1.size());
+                eventsLatch.countDown();
+            });
+
+            // Setup client2 subscriber
+            client2.subscribe(topic2, (TransactionalEvent event) -> {
+                var eventId = event.event().id();
+                receivedEventIdsTopic2.add(eventId);
+                logger.atInfo().log("Topic2 received event: {} {}", eventId, receivedEventIdsTopic2.size());
+                eventsLatch.countDown();
+            });
+
+            // Publish events to both topics
+            for (int i = 0; i < numberOfEventsTopic1; i++) {
+                final int eventNumber = i;
+                executor.submit(() -> {
+                    try {
+                        var event = TestUtil.createTestEvent(eventNumber, "topic1_subject");
+                        publishedEventIdsTopic1.add(event.id());
+                        Publisher.publish(event, dataSource, topic1);
+                        logger.atInfo().log("Published event to topic1: {}", event.id());
+                        return event.id();
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to publish event to topic1", e);
+                    }
+                });
+            }
+
+            for (int i = 0; i < numberOfEventsTopic2; i++) {
+                final int eventNumber = i;
+                executor.submit(() -> {
+                    try {
+                        var event = TestUtil.createTestEvent(eventNumber, "topic2_subject");
+                        publishedEventIdsTopic2.add(event.id());
+                        Publisher.publish(event, dataSource, topic2);
+                        logger.atInfo().log("Published event to topic2: {}", event.id());
+                        return event.id();
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to publish event to topic2", e);
+                    }
+                });
+            }
+
+            // Calculate maximum ticks allowed
+            int maxTicks = (totalEvents * 10) + 100;
+            int tickCount = 0;
+
+            // Tick until all events are received or max ticks reached
+            while (tickCount < maxTicks &&
+                    (receivedEventIdsTopic1.size() < numberOfEventsTopic1 ||
+                            receivedEventIdsTopic2.size() < numberOfEventsTopic2)) {
+                executor.tick(random, tickCount % 5 == 0);
+                Thread.sleep(10);
+                tickCount++;
+                logger.atInfo().log("Tick {}: Topic1 received {}/{}, Topic2 received {}/{} events",
+                        tickCount,
+                        receivedEventIdsTopic1.size(), numberOfEventsTopic1,
+                        receivedEventIdsTopic2.size(), numberOfEventsTopic2);
+            }
+
+            Thread.sleep(2000);
+
+            try (var connection = dataSource.getConnection()) {
+                connection.setAutoCommit(false);
+                TestUtil.logEventsInTopicTable(connection, logger, topic1);
+                TestUtil.logEventsInTopicTable(connection, logger, topic2);
+                TestUtil.logEventsInMessagesTable(connection, logger);
+                TestUtil.logEventsInHwmTable(connection, logger);
+            }
+            Thread.sleep(100);
+            // Assertions
+            assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
+
+            // Topic1 assertions
+            assertEquals(numberOfEventsTopic1, publishedEventIdsTopic1.size(),
+                    "Not all events were published to topic1");
+            assertEquals(numberOfEventsTopic1, receivedEventIdsTopic1.size(),
+                    "Not all events were received on topic1");
+            assertTrue(receivedEventIdsTopic1.containsAll(publishedEventIdsTopic1),
+                    "Not all published events were received on topic1");
+            assertTrue(Collections.disjoint(receivedEventIdsTopic1, publishedEventIdsTopic2),
+                    "Topic1 client received events from topic2");
+
+            // Topic2 assertions
+            assertEquals(numberOfEventsTopic2, publishedEventIdsTopic2.size(),
+                    "Not all events were published to topic2");
+            assertEquals(numberOfEventsTopic2, receivedEventIdsTopic2.size(),
+                    "Not all events were received on topic2");
+            assertTrue(receivedEventIdsTopic2.containsAll(publishedEventIdsTopic2),
+                    "Not all published events were received on topic2");
+            assertTrue(Collections.disjoint(receivedEventIdsTopic2, publishedEventIdsTopic1),
+                    "Topic2 client received events from topic1");
+
+            close(server);
+            close(client1);
+            close(client2);
             close(executor);
         }
     }

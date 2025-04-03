@@ -54,13 +54,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
             long currentHwm = getCurrentHwm(conn, topicName);
 
             // Find the next gap end (lowest idn greater than hwm)
-            long gapEnd = findGapEnd(conn, currentHwm);
+            long gapEnd = findGapEnd(conn, currentHwm, topicName);
 
             LOGGER.info(String.format("Current HWM %d highest message in gap %d",
                     currentHwm, gapEnd));
 
-            if (gapEnd <= currentHwm) {
-                LOGGER.info("No new events to process for topic: " + topicName);
+            if (gapEnd <= (currentHwm + 1)) {
+                LOGGER.info("No new gap events to process for topic: " + topicName);
+                if (updateHwmToLastContiguous(topicName, currentHwm, conn)) {
+                    systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
+                }
                 return 0;
             }
 
@@ -119,11 +122,12 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         getCurrentHwm(connection, topicName);
     }
 
-    private long findGapEnd(Connection connection, long currentHwm) throws SQLException {
-        String sql = "SELECT MIN(idn) as next_idn FROM postevent.messages WHERE idn > ?";
+    private long findGapEnd(Connection connection, long currentHwm, String topicName) throws SQLException {
+        String sql = "SELECT MIN(idn) as next_idn FROM postevent.messages WHERE topic=? AND idn > ?";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setLong(1, currentHwm);
+            stmt.setString(1, topicName);
+            stmt.setLong(2, currentHwm);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next() && rs.getObject("next_idn") != null) {
@@ -213,7 +217,7 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         while (rs.next()) {
             long actualIdn = rs.getLong("idn");
             if (actualIdn > expectedNext) {
-                LOGGER.info("Gap found: Expected {0}, found {1} (gap of {2})",
+                LOGGER.info("Gap found: Expected {}, found {} (gap of {})",
                         new Object[] { expectedNext, actualIdn, actualIdn - expectedNext });
                 return new GapCheckResult(true, lastContiguousIdn);
             }
@@ -233,24 +237,33 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
      * @throws SQLException If a database error occurs
      */
     public boolean hasSequenceGap(String topicName, long currentHwm) throws SQLException {
-        LOGGER.debug("Checking for sequence gaps after HWM {0} for topic {1}",
+
+        try (Connection connection = datasource.getConnection()) {
+
+            connection.setAutoCommit(false);
+            var result = hasSequenceGap(topicName, currentHwm, connection);
+            connection.commit();
+            return result;
+        }
+    }
+
+    public boolean hasSequenceGap(String topicName, long currentHwm, Connection connection) throws SQLException {
+        LOGGER.info("Checking for sequence gaps after HWM {} for topic {}",
                 new Object[] { currentHwm, topicName });
         String sql = "SELECT idn FROM postevent.messages WHERE idn > ? ORDER BY idn";
 
-        try (Connection connection = datasource.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-            connection.setAutoCommit(false);
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
 
             stmt.setLong(1, currentHwm);
             try (ResultSet rs = stmt.executeQuery()) {
                 GapCheckResult result = processMessages(rs, currentHwm);
                 if (result.lastContiguousIdn > currentHwm) {
-                    LOGGER.debug("Updating HWM from {0} to {1} for topic {2}",
+                    LOGGER.info("Updating HWM from {} to {} for topic {}",
                             new Object[] { currentHwm, result.lastContiguousIdn, topicName });
                     updateHwm(connection, topicName, currentHwm, result.lastContiguousIdn);
                 }
                 if (!result.gapFound) {
-                    LOGGER.debug("No sequence gaps found after HWM for topic {0}",
+                    LOGGER.info("No sequence gaps found after HWM for topic {}",
                             new Object[] { topicName });
                 }
                 connection.commit();
@@ -258,4 +271,26 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
             }
         }
     }
+
+    public boolean updateHwmToLastContiguous(String topicName, long currentHwm, Connection connection)
+            throws SQLException {
+        String sql = "SELECT idn FROM postevent.messages WHERE topic = ? AND idn > ? ORDER BY idn";
+
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, topicName);
+            stmt.setLong(2, currentHwm);
+            try (ResultSet rs = stmt.executeQuery()) {
+                GapCheckResult result = processMessages(rs, currentHwm);
+                boolean shouldUpdate = result.lastContiguousIdn > currentHwm;
+                if (shouldUpdate) {
+                    LOGGER.info("Updating HWM from {} to {} for topic {}",
+                            new Object[] { currentHwm, result.lastContiguousIdn, topicName });
+                    updateHwm(connection, topicName, currentHwm, result.lastContiguousIdn);
+                }
+                connection.commit();
+                return shouldUpdate;
+            }
+        }
+    }
+
 }

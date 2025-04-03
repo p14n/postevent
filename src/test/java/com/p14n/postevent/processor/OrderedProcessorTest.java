@@ -3,9 +3,6 @@ package com.p14n.postevent.processor;
 import com.p14n.postevent.data.Event;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,7 +43,7 @@ public class OrderedProcessorTest {
                 return mockPriorEventsStmt;
             } else if (sql.contains("UPDATE")) {
                 return mockUpdateStmt;
-            } else if (sql.contains("SELECT hwm")){
+            } else if (sql.contains("SELECT hwm")) {
                 return mockHwmStmt;
             }
             return mock(PreparedStatement.class);
@@ -85,7 +82,8 @@ public class OrderedProcessorTest {
         verify(mockConnection).commit();
         // Verify statements
         verify(mockPriorEventsStmt).setString(1, testEvent.subject());
-        verify(mockPriorEventsStmt).setLong(2, testEvent.idn());
+        verify(mockPriorEventsStmt).setString(2, testEvent.topic());
+        verify(mockPriorEventsStmt).setLong(3, testEvent.idn());
         verify(mockUpdateStmt).setLong(1, testEvent.idn());
 
         // Verify processor was called
@@ -111,7 +109,8 @@ public class OrderedProcessorTest {
 
         // Verify statements
         verify(mockPriorEventsStmt).setString(1, testEvent.subject());
-        verify(mockPriorEventsStmt).setLong(2, testEvent.idn());
+        verify(mockPriorEventsStmt).setString(2, testEvent.topic());
+        verify(mockPriorEventsStmt).setLong(3, testEvent.idn());
 
         // Verify processor was not called
         verify(mockProcessor, never()).apply(any(), any());

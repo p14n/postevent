@@ -1,8 +1,6 @@
 package com.p14n.postevent.processor;
 
 import com.p14n.postevent.data.Event;
-import com.p14n.postevent.db.DatabaseSetup;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -60,8 +58,8 @@ public class OrderedProcessor {
                 return false;
             }
             if (!previousEventExists(connection, event)) {
-                logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ")"
-                        + " as the previous event has not reached the client");
+                logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ") topic "
+                        + event.topic() + " as the previous event has not reached the client");
                 return false;
             }
 
@@ -71,7 +69,8 @@ public class OrderedProcessor {
             if (success) {
                 connection.commit();
                 logger.atDebug()
-                        .log(() -> "Successfully processed event " + event.id() + " (idn: " + event.idn() + ")");
+                        .log(() -> "Successfully processed event " + event.id() + " (idn: " + event.idn() + ") "
+                                + event.topic());
                 return true;
             } else {
                 return false; // Already rolled back in processEventWithFunction
@@ -94,11 +93,12 @@ public class OrderedProcessor {
      */
     private boolean hasUnprocessedPriorEvents(Connection connection, Event event) throws SQLException {
         String sql = "SELECT COUNT(*) FROM postevent.messages " +
-                "WHERE subject = ? AND idn < ? AND status != 'p'";
+                "WHERE subject = ? AND topic = ? AND idn < ? AND status != 'p'";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, event.subject());
-            stmt.setLong(2, event.idn());
+            stmt.setString(2, event.topic());
+            stmt.setLong(3, event.idn());
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -145,10 +145,11 @@ public class OrderedProcessor {
      */
     private boolean updateEventStatus(Connection connection, Event event) throws SQLException {
         String sql = "UPDATE postevent.messages SET status = 'p' " +
-                "WHERE idn = ? AND status = 'u'";
+                "WHERE idn = ? AND topic = ? AND status = 'u'";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setLong(1, event.idn());
+            stmt.setString(2, event.topic());
 
             int updatedRows = stmt.executeUpdate();
             return updatedRows > 0;

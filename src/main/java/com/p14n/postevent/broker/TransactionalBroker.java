@@ -20,14 +20,13 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
     }
 
     @Override
-    public void publish(Event message) {
-
-        if (!canProcess(message)) {
+    public void publish(String topic, Event message) {
+        if (!canProcess(topic, message)) {
             return;
         }
 
         // Deliver to all subscribers
-        for (MessageSubscriber<TransactionalEvent> subscriber : subscribers) {
+        for (MessageSubscriber<TransactionalEvent> subscriber : topicSubscribers.get(topic)) {
             try (Connection c = ds.getConnection()) {
                 var op = new OrderedProcessor((connection, event) -> {
                     try {

@@ -16,4 +16,12 @@ public class SystemEventBroker extends
         return m;
     }
 
+    public void publish(SystemEvent event) {
+        publish("system", event);
+    }
+
+    public void subscribe(MessageSubscriber<SystemEvent> subscriber) {
+        subscribe("system", subscriber);
+    }
+
 }

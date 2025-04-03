@@ -173,6 +173,8 @@ public class TestAsyncExecutor implements AsyncExecutor {
     @SuppressWarnings("unchecked")
     public void tick(Random random, boolean includeScheduled) {
 
+        System.out.println("Tick" + scheduledTasks.size() + " " + includeScheduled);
+
         var handleScheduled = includeScheduled && !scheduledTasks.isEmpty();
         if (pendingTasks.isEmpty() && !handleScheduled) {
             return;
