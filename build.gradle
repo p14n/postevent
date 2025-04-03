@@ -29,7 +29,7 @@ dependencies {
     implementation 'com.zaxxer:HikariCP:6.2.1'
     
     constraints {
-        implementation 'com.google.guava:guava:32.0.0'
+        implementation 'com.google.guava:guava:32.0.0-jre'
     }
 
     // gRPC dependencies
