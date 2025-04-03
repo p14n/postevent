@@ -1,7 +1,6 @@
 package com.p14n.postevent;
 
 import com.p14n.postevent.broker.MessageBroker;
-import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;

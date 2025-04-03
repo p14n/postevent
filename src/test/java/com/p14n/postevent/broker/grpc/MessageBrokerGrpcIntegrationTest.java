@@ -1,13 +1,8 @@
 package com.p14n.postevent.broker.grpc;
 
 import com.p14n.postevent.broker.DefaultMessageBroker;
-import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
-import com.p14n.postevent.db.DatabaseSetup;
-
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.junit.jupiter.api.AfterEach;

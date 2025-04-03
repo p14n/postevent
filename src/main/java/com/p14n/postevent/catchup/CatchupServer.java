@@ -1,6 +1,5 @@
 package com.p14n.postevent.catchup;
 
-import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.SQL;
 

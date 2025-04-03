@@ -14,7 +14,7 @@ public class Functions {
         var actualObj = mapper.readTree(record.value());
         var payload = actualObj.get("payload");
         var r = payload != null ? payload.get("after") : null;
-        if (r != null &&
+        if (r != null && payload != null &&
                 payload.get("source") != null &&
                 payload.get("source").get("table") != null) {
             var topic = payload.get("source").get("table");

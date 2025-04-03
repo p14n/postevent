@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoCloseable, MessageSubscriber<Event> {
     private static final Logger logger = LoggerFactory.getLogger(PersistentBroker.class);
     private static final String INSERT_SQL = "INSERT INTO postevent.messages (" + SQL.EXT_COLS +
-            ") VALUES (" + SQL.EXT_PH + ")";
+            ") VALUES (" + SQL.EXT_PH + ") ON CONFLICT DO NOTHING";
     private static final String UPDATE_HWM_SQL = "UPDATE postevent.contiguous_hwm set hwm=? where topic_name=? and hwm=?";
 
     private final MessageBroker<Event, OutT> targetBroker;
@@ -66,6 +66,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
             }
 
         } catch (SQLException e) {
+            logger.atError().setCause(e).log("Error persisting and forwarding event");
             SQL.handleSQLException(e, conn);
             throw new RuntimeException("Failed to persist and forward event", e);
         } finally {

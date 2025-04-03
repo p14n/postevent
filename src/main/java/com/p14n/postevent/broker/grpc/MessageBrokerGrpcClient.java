@@ -1,9 +1,7 @@
 package com.p14n.postevent.broker.grpc;
 
 import com.p14n.postevent.broker.EventMessageBroker;
-import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
-import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.data.Event;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -13,14 +11,11 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MessageBrokerGrpcClient extends EventMessageBroker implements AutoCloseable {
+public class MessageBrokerGrpcClient extends EventMessageBroker {
     private static final Logger logger = LoggerFactory.getLogger(MessageBrokerGrpcClient.class);
 
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;

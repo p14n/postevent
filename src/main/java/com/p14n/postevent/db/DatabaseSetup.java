@@ -1,7 +1,6 @@
 package com.p14n.postevent.db;
 
 import com.p14n.postevent.data.PostEventConfig;
-import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.zaxxer.hikari.HikariDataSource;
 
 import javax.sql.DataSource;
@@ -101,7 +100,7 @@ public class DatabaseSetup {
 
             String sql = """
                     CREATE TABLE IF NOT EXISTS postevent.messages (
-                        idn bigint PRIMARY KEY NOT NULL,
+                        idn bigint NOT NULL,
                         topic VARCHAR(255) NOT NULL,
                         id VARCHAR(255),
                         source VARCHAR(1024),
@@ -112,7 +111,7 @@ public class DatabaseSetup {
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE,
                         status VARCHAR(1) DEFAULT 'u',
-                        UNIQUE (idn, topic)
+                        PRIMARY KEY (topic,idn)
                     )""";
 
             stmt.execute(sql);
