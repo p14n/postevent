@@ -5,6 +5,7 @@ import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +20,9 @@ public class LocalConsumerExample {
 
     public static void main(String[] args) throws IOException, InterruptedException, SQLException {
         CountDownLatch l = new CountDownLatch(1);
+        var telemetryConfig = new DefaultTelemetryConfig("example");
 
-        try (var mb = new EventMessageBroker();
+        try (var mb = new EventMessageBroker(telemetryConfig);
                 EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
                 var lc = new LocalConsumer<>(new ConfigData(
                         "local",

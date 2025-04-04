@@ -3,6 +3,8 @@ package com.p14n.postevent.broker.grpc;
 import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
+import com.p14n.postevent.telemetry.TelemetryConfig;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.junit.jupiter.api.AfterEach;
@@ -36,8 +38,10 @@ public class MessageBrokerGrpcIntegrationTest {
 
     @BeforeEach
     public void setUp() throws IOException {
+
+        var telemetryConfig = new DefaultTelemetryConfig(MessageBrokerGrpcIntegrationTest.class.getSimpleName());
         // Create the message broker
-        messageBroker = new TestMessageBroker();
+        messageBroker = new TestMessageBroker(telemetryConfig);
 
         // Create and start the gRPC server
         MessageBrokerGrpcServer grpcServer = new MessageBrokerGrpcServer(messageBroker);
@@ -51,7 +55,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(HOST, PORT);
+        client = new MessageBrokerGrpcClient(telemetryConfig,HOST, PORT);
     }
 
     @AfterEach
@@ -205,11 +209,20 @@ public class MessageBrokerGrpcIntegrationTest {
     private static class TestMessageBroker extends DefaultMessageBroker<Event, Event> {
         private final List<Event> publishedEvents = new ArrayList<>();
 
+        public TestMessageBroker(TelemetryConfig telemetryConfig) {
+            super(telemetryConfig);
+        }
+
         @Override
         public void publish(String topic, Event event) {
             publishedEvents.add(event);
             logger.info("Published event in test broker: " + event.id());
             super.publish(topic, event);
+        }
+
+        @Override
+        protected String getEventId(Event message) {
+            return message.id();
         }
 
         @Override

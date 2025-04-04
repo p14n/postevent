@@ -7,6 +7,7 @@ import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.example.ExampleUtil;
 
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
 import net.jqwik.api.*;
 import java.util.Collections;
 import java.util.List;
@@ -26,11 +27,13 @@ class DeterministicConsumerTest {
     private static final int PORT = 50052;
     private static final String TOPIC = "test_topic";
 
+
     @Property(tries = 10)
     void testDeterministicEventDelivery(@ForAll("randomSeeds") long seed) throws Exception {
         logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
         var executor = new TestAsyncExecutor();
+        var telemetryConfig = new DefaultTelemetryConfig(DeterministicConsumerTest.class.getSimpleName());
 
         try (var pg = ExampleUtil.embeddedPostgres();) {
 
@@ -46,12 +49,12 @@ class DeterministicConsumerTest {
                     "postgres");
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor,telemetryConfig);
 
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(executor);
+            var client = new ConsumerClient(telemetryConfig,executor);
             client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
@@ -143,6 +146,8 @@ class DeterministicConsumerTest {
 
         try (var pg = ExampleUtil.embeddedPostgres();) {
 
+            var telemetryConfig = new DefaultTelemetryConfig(DeterministicConsumerTest.class.getSimpleName());
+
             var dataSource = pg.getPostgresDatabase();
 
             var config = new ConfigData(
@@ -157,12 +162,12 @@ class DeterministicConsumerTest {
             var executor = new TestAsyncExecutor();
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor,telemetryConfig);
 
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(executor);
+            var client = new ConsumerClient(telemetryConfig,executor);
             client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             logger.atInfo().log("Testing with seed: {}", seed);
@@ -256,6 +261,7 @@ class DeterministicConsumerTest {
         logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
         var executor = new TestAsyncExecutor();
+        var telemetryConfig = new DefaultTelemetryConfig(DeterministicConsumerTest.class.getSimpleName());
 
         String topic1 = "test_topic_one";
         String topic2 = "test_topic_two";
@@ -274,15 +280,15 @@ class DeterministicConsumerTest {
                     "postgres");
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor,telemetryConfig);
             server.start(PORT);
 
             // Start client for topic1
-            var client1 = new ConsumerClient(executor);
+            var client1 = new ConsumerClient(telemetryConfig,executor);
             client1.start(Set.of(topic1), dataSource, "localhost", PORT);
 
             // Start client for topic2
-            var client2 = new ConsumerClient(executor);
+            var client2 = new ConsumerClient(telemetryConfig,executor);
             client2.start(Set.of(topic2), dataSource, "localhost", PORT);
 
             // Track received events per topic

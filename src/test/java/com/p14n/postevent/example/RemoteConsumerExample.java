@@ -5,6 +5,7 @@ import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
 
 import javax.sql.DataSource;
 
@@ -15,8 +16,9 @@ import java.util.concurrent.Executors;
 public class RemoteConsumerExample {
 
     private static void constructServer(DataSource ds, ConfigData cfg, CountDownLatch l, int port) {
+        var telemetryConfig = new DefaultTelemetryConfig("ServerExample");
 
-        try (ConsumerServer cs = new ConsumerServer(ds, cfg)) {
+        try (ConsumerServer cs = new ConsumerServer(ds, cfg,telemetryConfig)) {
             cs.start(port);
             l.await();
         } catch (Exception e) {
@@ -27,7 +29,9 @@ public class RemoteConsumerExample {
 
     private static void constructClient(DataSource ds, CountDownLatch l, int port, String topic) {
 
-        try (ConsumerClient client = new ConsumerClient()) {
+        var telemetryConfig = new DefaultTelemetryConfig("ClientExample");
+
+        try (ConsumerClient client = new ConsumerClient(telemetryConfig)) {
             client.start(Set.of(topic), ds, "localhost", port);
             client.subscribe(topic, message -> {
                 System.err.println("********* Message received *************");

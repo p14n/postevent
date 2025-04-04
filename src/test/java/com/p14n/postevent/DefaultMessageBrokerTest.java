@@ -2,6 +2,7 @@ package com.p14n.postevent;
 
 import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
@@ -35,7 +36,13 @@ class DefaultMessageBrokerTest {
 
     @BeforeEach
     void setUp() {
-        broker = new DefaultMessageBroker<>() {
+        var telemetryConfig = new DefaultTelemetryConfig("test");
+        broker = new DefaultMessageBroker<>(telemetryConfig) {
+            @Override
+            protected String getEventId(String message) {
+                return message;
+            }
+
             @Override
             public String convert(String m) {
                 return m;

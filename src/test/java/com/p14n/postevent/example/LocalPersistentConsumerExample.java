@@ -4,6 +4,7 @@ import com.p14n.postevent.LocalPersistentConsumer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
 import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -14,6 +15,8 @@ public class LocalPersistentConsumerExample {
 
     public static void main(String[] args) throws IOException, InterruptedException, SQLException {
         CountDownLatch l = new CountDownLatch(1);
+        var telemetryConfig = new DefaultTelemetryConfig("example");
+
         try (var pg = ExampleUtil.embeddedPostgres();
                 var lc = new LocalPersistentConsumer(pg.getPostgresDatabase(), new ConfigData(
                         "local",
@@ -22,7 +25,7 @@ public class LocalPersistentConsumerExample {
                         pg.getPort(),
                         "postgres",
                         "postgres",
-                        "postgres"));) {
+                        "postgres"),telemetryConfig);) {
 
             var ds = pg.getPostgresDatabase();
 

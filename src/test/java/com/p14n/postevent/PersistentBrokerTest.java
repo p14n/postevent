@@ -5,6 +5,8 @@ import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
+import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
+import com.p14n.postevent.telemetry.TelemetryConfig;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,11 +25,14 @@ class PersistentBrokerTest {
     private Connection conn;
     private PersistentBroker persistentBroker;
     private MessageBroker<Event, Event> mockSubscriber;
+    private TelemetryConfig telemetryConfig;
 
     @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() throws Exception {
         pg = EmbeddedPostgres.builder().start();
+
+        telemetryConfig = new DefaultTelemetryConfig("test");
 
         // Create schema and messages table
         new DatabaseSetup(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres")
@@ -39,7 +44,7 @@ class PersistentBrokerTest {
         conn.setAutoCommit(false);
         mockSubscriber = Mockito.mock(MessageBroker.class);
         persistentBroker = new PersistentBroker(mockSubscriber, pg.getPostgresDatabase(),
-                new SystemEventBroker());
+                new SystemEventBroker(telemetryConfig));
     }
 
     @AfterEach

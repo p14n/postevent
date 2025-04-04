@@ -14,6 +14,7 @@ import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.catchup.UnprocessedSubmitter;
 import com.p14n.postevent.catchup.grpc.CatchupGrpcClient;
 import com.p14n.postevent.data.UnprocessedEventFinder;
+import com.p14n.postevent.telemetry.TelemetryConfig;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
@@ -33,13 +34,15 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     private List<AutoCloseable> closeables;
     private TransactionalBroker tb;
     SystemEventBroker seb;
+    TelemetryConfig telemetryConfig;
 
-    public ConsumerClient(AsyncExecutor asyncExecutor) {
+    public ConsumerClient(TelemetryConfig telemetryConfig,AsyncExecutor asyncExecutor) {
         this.asyncExecutor = asyncExecutor;
+        this.telemetryConfig = telemetryConfig;
     }
 
-    public ConsumerClient() {
-        this(new DefaultExecutor(2));
+    public ConsumerClient(TelemetryConfig telemetryConfig) {
+        this(telemetryConfig,new DefaultExecutor(2));
     }
 
     public void start(Set<String> topics, DataSource ds, String host, int port) {
@@ -59,10 +62,10 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
         }
 
         try {
-            tb = new TransactionalBroker(ds, asyncExecutor);
-            seb = new SystemEventBroker(asyncExecutor);
+            tb = new TransactionalBroker(ds, asyncExecutor,telemetryConfig);
+            seb = new SystemEventBroker(asyncExecutor,telemetryConfig);
             var pb = new PersistentBroker<>(tb, ds, seb);
-            var client = new MessageBrokerGrpcClient(channel);
+            var client = new MessageBrokerGrpcClient(telemetryConfig,channel);
             var catchupClient = new CatchupGrpcClient(channel);
 
             for (var topic : topics) {

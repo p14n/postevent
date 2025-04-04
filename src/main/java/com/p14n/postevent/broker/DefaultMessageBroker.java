@@ -5,18 +5,28 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.p14n.postevent.telemetry.BrokerMetrics;
+import com.p14n.postevent.telemetry.TelemetryConfig;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+
 public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<InT, OutT>, AutoCloseable {
 
     protected final ConcurrentHashMap<String, Set<MessageSubscriber<OutT>>> topicSubscribers = new ConcurrentHashMap<>();
     protected final AtomicBoolean closed = new AtomicBoolean(false);
     private final AsyncExecutor asyncExecutor;
+    protected final BrokerMetrics metrics;
+    protected final Tracer tracer;
 
-    public DefaultMessageBroker() {
-        this(new DefaultExecutor(2));
+    public DefaultMessageBroker(TelemetryConfig telemetryConfig) {
+        this(new DefaultExecutor(2), telemetryConfig);
     }
 
-    public DefaultMessageBroker(AsyncExecutor asyncExecutor) {
+    public DefaultMessageBroker(AsyncExecutor asyncExecutor, TelemetryConfig telemetryConfig) {
         this.asyncExecutor = asyncExecutor;
+        this.metrics = new BrokerMetrics(telemetryConfig.getMeter());
+        this.tracer = telemetryConfig.getTracer();
     }
 
     protected boolean canProcess(String topic, InT message) {
@@ -42,22 +52,38 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             return;
         }
 
+        metrics.recordPublished(topic);
+
+        Span span = tracer.spanBuilder("publish_message")
+                .setAttribute("topic", topic)
+                .setAttribute("event.id", getEventId(message))
+                .startSpan();
+
         // Deliver to all subscribers for this topic
         Set<MessageSubscriber<OutT>> subscribers = topicSubscribers.get(topic);
         if (subscribers != null) {
             for (MessageSubscriber<OutT> subscriber : subscribers) {
                 asyncExecutor.submit(() -> {
-                    try {
+
+                    Span childSpan = tracer.spanBuilder("process_message")
+                            .setAttribute("topic", topic)
+                            .setAttribute("event.id", getEventId(message))
+                            .startSpan();
+                    try (Scope childScope = childSpan.makeCurrent()) {
                         subscriber.onMessage(convert(message));
-                        return null;
+                        metrics.recordReceived(topic);
+                        return true;
                     } catch (Exception e) {
+                        childSpan.recordException(e);
                         try {
                             subscriber.onError(e);
                         } catch (Exception ignored) {
-                            // If error handling fails, we ignore it to protect other subscribers
                         }
+                        return false;
+                    } finally {
+                        childSpan.end();
                     }
-                    return null;
+
                 });
             }
         }
@@ -77,9 +103,15 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             throw new IllegalArgumentException("Topic cannot be null");
         }
 
-        return topicSubscribers
+        boolean added = topicSubscribers
                 .computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>())
                 .add(subscriber);
+
+        if (added) {
+            metrics.recordSubscriberAdded(topic);
+        }
+
+        return added;
     }
 
     @Override
@@ -98,6 +130,9 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             if (subscribers.isEmpty()) {
                 topicSubscribers.remove(topic);
             }
+            if (removed) {
+                metrics.recordSubscriberRemoved(topic);
+            }
             return removed;
         }
         return false;
@@ -108,4 +143,6 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
         closed.set(true);
         topicSubscribers.clear();
     }
+
+    protected abstract String getEventId(InT message);
 }
