@@ -8,6 +8,8 @@ import com.p14n.postevent.catchup.UnprocessedSubmitter;
 import com.p14n.postevent.data.PostEventConfig;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 
+import io.opentelemetry.api.OpenTelemetry;
+
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
@@ -15,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
-import com.p14n.postevent.telemetry.TelemetryConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,17 +27,18 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     private AsyncExecutor asyncExecutor;
     private TransactionalBroker tb;
     private List<AutoCloseable> closeables;
-    private TelemetryConfig telemetryConfig;
+    private OpenTelemetry ot;
 
-    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, AsyncExecutor asyncExecutor,TelemetryConfig telemetryConfig) {
+    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, AsyncExecutor asyncExecutor,
+            OpenTelemetry ot) {
         this.ds = ds;
         this.cfg = cfg;
         this.asyncExecutor = asyncExecutor;
-        this.telemetryConfig = telemetryConfig;
+        this.ot = ot;
     }
 
-    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg,TelemetryConfig telemetryConfig) {
-        this(ds, cfg, new DefaultExecutor(2),telemetryConfig);
+    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, OpenTelemetry ot) {
+        this(ds, cfg, new DefaultExecutor(2), ot);
     }
 
     public void start() throws IOException, InterruptedException {
@@ -48,8 +50,8 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
         }
 
         try {
-            tb = new TransactionalBroker(ds, asyncExecutor,telemetryConfig);
-            var seb = new SystemEventBroker(asyncExecutor,telemetryConfig);
+            tb = new TransactionalBroker(ds, asyncExecutor, ot);
+            var seb = new SystemEventBroker(asyncExecutor, ot);
             var pb = new PersistentBroker<>(tb, ds, seb);
             var lc = new LocalConsumer<>(cfg, pb);
 

@@ -6,7 +6,7 @@ import java.time.Instant;
  * Record representing an event to be published to the database.
  */
 public record Event(String id, String source, String type, String datacontenttype, String dataschema, String subject,
-        byte[] data, Instant time, Long idn, String topic) {
+        byte[] data, Instant time, Long idn, String topic) implements Traceable {
 
     /**
      * Creates a new Event instance with validation of required fields.

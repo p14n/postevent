@@ -14,9 +14,10 @@ import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.grpc.CatchupGrpcServer;
 import com.p14n.postevent.data.ConfigData;
 
-import com.p14n.postevent.telemetry.TelemetryConfig;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.opentelemetry.api.OpenTelemetry;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,17 +29,17 @@ public class ConsumerServer implements AutoCloseable {
     private List<AutoCloseable> closeables;
     private Server server;
     private AsyncExecutor asyncExecutor;
-    TelemetryConfig telemetryConfig;
+    OpenTelemetry ot;
 
-    public ConsumerServer(DataSource ds, ConfigData cfg, TelemetryConfig telemetryConfig) {
-        this(ds, cfg, new DefaultExecutor(2),telemetryConfig);
+    public ConsumerServer(DataSource ds, ConfigData cfg, OpenTelemetry ot) {
+        this(ds, cfg, new DefaultExecutor(2), ot);
     }
 
-    public ConsumerServer(DataSource ds, ConfigData cfg, AsyncExecutor asyncExecutor,TelemetryConfig telemetryConfig) {
+    public ConsumerServer(DataSource ds, ConfigData cfg, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
         this.ds = ds;
         this.cfg = cfg;
         this.asyncExecutor = asyncExecutor;
-        this.telemetryConfig = telemetryConfig;
+        this.ot = ot;
     }
 
     public void start(int port) throws IOException, InterruptedException {
@@ -48,7 +49,7 @@ public class ConsumerServer implements AutoCloseable {
     public void start(ServerBuilder<?> sb) throws IOException, InterruptedException {
         logger.atInfo().log("Starting consumer server");
 
-        var mb = new EventMessageBroker(asyncExecutor,telemetryConfig);
+        var mb = new EventMessageBroker(asyncExecutor, ot);
         var lc = new LocalConsumer<>(cfg, mb);
         var grpcServer = new MessageBrokerGrpcServer(mb);
         var catchupServer = new CatchupServer(ds);

@@ -87,6 +87,9 @@ test {
     failFast = true
     testLogging.showStandardStreams = true
 }
+task fastTest( type: Test ) {
+    exclude '**/dst/**'
+}
 
 jar {
     manifest {

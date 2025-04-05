@@ -3,10 +3,11 @@ package com.p14n.postevent.broker.grpc;
 import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
-import com.p14n.postevent.telemetry.DefaultTelemetryConfig;
-import com.p14n.postevent.telemetry.TelemetryConfig;
+
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.opentelemetry.api.OpenTelemetry;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +40,9 @@ public class MessageBrokerGrpcIntegrationTest {
     @BeforeEach
     public void setUp() throws IOException {
 
-        var telemetryConfig = new DefaultTelemetryConfig(MessageBrokerGrpcIntegrationTest.class.getSimpleName());
+        var ot = OpenTelemetry.noop();
         // Create the message broker
-        messageBroker = new TestMessageBroker(telemetryConfig);
+        messageBroker = new TestMessageBroker(ot);
 
         // Create and start the gRPC server
         MessageBrokerGrpcServer grpcServer = new MessageBrokerGrpcServer(messageBroker);
@@ -55,7 +56,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(telemetryConfig,HOST, PORT);
+        client = new MessageBrokerGrpcClient(ot, HOST, PORT);
     }
 
     @AfterEach
@@ -209,8 +210,8 @@ public class MessageBrokerGrpcIntegrationTest {
     private static class TestMessageBroker extends DefaultMessageBroker<Event, Event> {
         private final List<Event> publishedEvents = new ArrayList<>();
 
-        public TestMessageBroker(TelemetryConfig telemetryConfig) {
-            super(telemetryConfig);
+        public TestMessageBroker(OpenTelemetry ot) {
+            super(ot);
         }
 
         @Override
@@ -218,11 +219,6 @@ public class MessageBrokerGrpcIntegrationTest {
             publishedEvents.add(event);
             logger.info("Published event in test broker: " + event.id());
             super.publish(topic, event);
-        }
-
-        @Override
-        protected String getEventId(Event message) {
-            return message.id();
         }
 
         @Override

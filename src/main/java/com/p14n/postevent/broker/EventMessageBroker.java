@@ -1,16 +1,17 @@
 package com.p14n.postevent.broker;
 
 import com.p14n.postevent.data.Event;
-import com.p14n.postevent.telemetry.TelemetryConfig;
+
+import io.opentelemetry.api.OpenTelemetry;
 
 public class EventMessageBroker extends DefaultMessageBroker<Event, Event> {
 
-    public EventMessageBroker(AsyncExecutor asyncExecutor, TelemetryConfig telemetryConfig) {
-        super(asyncExecutor,telemetryConfig);
+    public EventMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+        super(asyncExecutor, ot);
     }
 
-    public EventMessageBroker(TelemetryConfig telemetryConfig) {
-        super(telemetryConfig);
+    public EventMessageBroker(OpenTelemetry ot) {
+        super(ot);
     }
 
     @Override
@@ -18,8 +19,4 @@ public class EventMessageBroker extends DefaultMessageBroker<Event, Event> {
         return m;
     }
 
-    @Override
-    protected String getEventId(Event message) {
-        return message.id();
-    }
 }

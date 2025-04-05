@@ -1,16 +1,16 @@
 package com.p14n.postevent.broker;
 
-import com.p14n.postevent.telemetry.TelemetryConfig;
+import io.opentelemetry.api.OpenTelemetry;
 
 public class SystemEventBroker extends
         DefaultMessageBroker<SystemEvent, SystemEvent> {
 
-    public SystemEventBroker(AsyncExecutor asyncExecutor, TelemetryConfig telemetryConfig) {
-        super(asyncExecutor,telemetryConfig);
+    public SystemEventBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+        super(asyncExecutor, ot);
     }
 
-    public SystemEventBroker(TelemetryConfig telemetryConfig) {
-        super(telemetryConfig);
+    public SystemEventBroker(OpenTelemetry ot) {
+        super(ot);
     }
 
     @Override
@@ -26,8 +26,4 @@ public class SystemEventBroker extends
         subscribe("system", subscriber);
     }
 
-    @Override
-    protected String getEventId(SystemEvent message) {
-        return message.toString();
-    }
 }

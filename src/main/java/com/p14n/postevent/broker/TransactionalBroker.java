@@ -2,23 +2,25 @@ package com.p14n.postevent.broker;
 
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.processor.OrderedProcessor;
-import com.p14n.postevent.telemetry.TelemetryConfig;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.context.Scope;
+
+import io.opentelemetry.api.OpenTelemetry;
 
 import javax.sql.DataSource;
+
+import static com.p14n.postevent.telemetry.OpenTelemetryFunctions.processWithTelemetry;
+
 import java.sql.Connection;
 
 public class TransactionalBroker extends DefaultMessageBroker<Event, TransactionalEvent> {
     private final DataSource ds;
 
-    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, TelemetryConfig telemetryConfig) {
-        super(asyncExecutor, telemetryConfig);
+    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+        super(asyncExecutor, ot);
         this.ds = ds;
     }
 
-    public TransactionalBroker(DataSource ds, TelemetryConfig telemetryConfig) {
-        super(telemetryConfig);
+    public TransactionalBroker(DataSource ds, OpenTelemetry ot) {
+        super(ot);
         this.ds = ds;
     }
 
@@ -30,37 +32,33 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
 
         metrics.recordPublished(topic);
 
-        Span span = tracer.spanBuilder("publish_message_tx")
-                .setAttribute("topic", topic)
-                .setAttribute("event.id", getEventId(message))
-                .startSpan();
-
         // Deliver to all subscribers
         for (MessageSubscriber<TransactionalEvent> subscriber : topicSubscribers.get(topic)) {
             try (Connection c = ds.getConnection()) {
-                var op = new OrderedProcessor((connection, event) -> {
 
-                    Span childSpan = tracer.spanBuilder("process_message")
-                            .setAttribute("topic", topic)
-                            .setAttribute("event.id", getEventId(message))
-                            .startSpan();
-                    try (Scope childScope = childSpan.makeCurrent()) {
-                        subscriber.onMessage(new TransactionalEvent(connection, event));
-                        metrics.recordReceived(topic);
-                        return true;
-                    } catch (Exception e) {
-                        childSpan.recordException(e);
-                        try {
-                            subscriber.onError(e);
-                        } catch (Exception ignored) {
-                        }
-                        return false;
-                    } finally {
-                        childSpan.end();
-                    }
+                processWithTelemetry(tracer, message, "ordered_process", () -> {
 
+                    var op = new OrderedProcessor((connection, event) -> {
+
+                        return processWithTelemetry(tracer, message, "message_transaction", () -> {
+                            try {
+                                subscriber.onMessage(new TransactionalEvent(connection, event));
+                                metrics.recordReceived(topic);
+                                return true;
+                            } catch (Exception e) {
+                                try {
+                                    subscriber.onError(e);
+                                } catch (Exception ignored) {
+                                }
+                                return false;
+                            }
+                        });
+
+                    });
+                    op.process(c, message);
+                    return null;
                 });
-                op.process(c, message);
+
             } catch (Exception e) {
                 try {
                     subscriber.onError(e);
@@ -69,11 +67,6 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
                 }
             }
         }
-    }
-
-    @Override
-    protected String getEventId(Event message) {
-        return message.id();
     }
 
     @Override
