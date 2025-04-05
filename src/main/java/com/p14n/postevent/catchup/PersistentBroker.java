@@ -50,7 +50,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
                 stmt.setLong(3, event.idn() - 1);
                 updates = stmt.executeUpdate();
                 if (updates < 1) {
-                    logger.atDebug().log("Publishing catchup required event");
+                    logger.atDebug().log("Publishing catchup required event for topic " + topic);
                     systemEventBroker
                             .publish(SystemEvent.CatchupRequired.withTopic(event.topic()));
 
@@ -61,7 +61,7 @@ public class PersistentBroker<OutT> implements MessageBroker<Event, OutT>, AutoC
 
             // Forward to actual subscriber after successful persistence
             if (updates > 0) {
-                logger.atDebug().log("Forwarding event to target broker");
+                logger.atDebug().log("Forwarding event to target broker for topic " + topic);
                 targetBroker.publish(topic, event);
             }
 

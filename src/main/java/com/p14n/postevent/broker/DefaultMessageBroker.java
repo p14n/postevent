@@ -5,18 +5,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<InT, OutT>, AutoCloseable {
+import com.p14n.postevent.data.Traceable;
+import com.p14n.postevent.telemetry.BrokerMetrics;
+import static com.p14n.postevent.telemetry.OpenTelemetryFunctions.processWithTelemetry;
+
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
+
+public abstract class DefaultMessageBroker<InT extends Traceable, OutT>
+        implements MessageBroker<InT, OutT>, AutoCloseable {
 
     protected final ConcurrentHashMap<String, Set<MessageSubscriber<OutT>>> topicSubscribers = new ConcurrentHashMap<>();
     protected final AtomicBoolean closed = new AtomicBoolean(false);
     private final AsyncExecutor asyncExecutor;
+    protected final BrokerMetrics metrics;
+    protected final Tracer tracer;
 
-    public DefaultMessageBroker() {
-        this(new DefaultExecutor(2));
+    public DefaultMessageBroker(OpenTelemetry ot) {
+        this(new DefaultExecutor(2), ot);
     }
 
-    public DefaultMessageBroker(AsyncExecutor asyncExecutor) {
+    public DefaultMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
         this.asyncExecutor = asyncExecutor;
+        this.metrics = new BrokerMetrics(ot.getMeter("default-message-broker"));
+        this.tracer = ot.getTracer("default-message-broker");
     }
 
     protected boolean canProcess(String topic, InT message) {
@@ -42,24 +54,32 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             return;
         }
 
+        metrics.recordPublished(topic);
+
         // Deliver to all subscribers for this topic
         Set<MessageSubscriber<OutT>> subscribers = topicSubscribers.get(topic);
         if (subscribers != null) {
-            for (MessageSubscriber<OutT> subscriber : subscribers) {
-                asyncExecutor.submit(() -> {
-                    try {
-                        subscriber.onMessage(convert(message));
-                        return null;
-                    } catch (Exception e) {
-                        try {
-                            subscriber.onError(e);
-                        } catch (Exception ignored) {
-                            // If error handling fails, we ignore it to protect other subscribers
-                        }
-                    }
-                    return null;
-                });
-            }
+
+            processWithTelemetry(tracer, message, "publish_message", () -> {
+                for (MessageSubscriber<OutT> subscriber : subscribers) {
+                    asyncExecutor.submit(() -> processWithTelemetry(tracer, message, "process_message",
+                            () -> {
+                                try {
+                                    subscriber.onMessage(convert(message));
+                                    metrics.recordReceived(topic);
+                                    return true;
+                                } catch (Exception e) {
+                                    try {
+                                        subscriber.onError(e);
+                                    } catch (Exception ignored) {
+                                    }
+                                    throw e;
+                                }
+                            }));
+                }
+                return null;
+            });
+
         }
     }
 
@@ -77,9 +97,15 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             throw new IllegalArgumentException("Topic cannot be null");
         }
 
-        return topicSubscribers
+        boolean added = topicSubscribers
                 .computeIfAbsent(topic, k -> new CopyOnWriteArraySet<>())
                 .add(subscriber);
+
+        if (added) {
+            metrics.recordSubscriberAdded(topic);
+        }
+
+        return added;
     }
 
     @Override
@@ -98,6 +124,9 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
             if (subscribers.isEmpty()) {
                 topicSubscribers.remove(topic);
             }
+            if (removed) {
+                metrics.recordSubscriberRemoved(topic);
+            }
             return removed;
         }
         return false;
@@ -108,4 +137,5 @@ public abstract class DefaultMessageBroker<InT, OutT> implements MessageBroker<I
         closed.set(true);
         topicSubscribers.clear();
     }
+
 }

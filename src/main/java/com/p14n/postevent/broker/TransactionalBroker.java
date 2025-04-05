@@ -3,19 +3,24 @@ package com.p14n.postevent.broker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.processor.OrderedProcessor;
 
+import io.opentelemetry.api.OpenTelemetry;
+
 import javax.sql.DataSource;
+
+import static com.p14n.postevent.telemetry.OpenTelemetryFunctions.processWithTelemetry;
+
 import java.sql.Connection;
 
 public class TransactionalBroker extends DefaultMessageBroker<Event, TransactionalEvent> {
     private final DataSource ds;
 
-    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor) {
-        super(asyncExecutor);
+    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+        super(asyncExecutor, ot);
         this.ds = ds;
     }
 
-    public TransactionalBroker(DataSource ds) {
-        super();
+    public TransactionalBroker(DataSource ds, OpenTelemetry ot) {
+        super(ot);
         this.ds = ds;
     }
 
@@ -25,18 +30,35 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
             return;
         }
 
+        metrics.recordPublished(topic);
+
         // Deliver to all subscribers
         for (MessageSubscriber<TransactionalEvent> subscriber : topicSubscribers.get(topic)) {
             try (Connection c = ds.getConnection()) {
-                var op = new OrderedProcessor((connection, event) -> {
-                    try {
-                        subscriber.onMessage(new TransactionalEvent(connection, event));
-                        return true;
-                    } catch (Exception e) {
-                        return false;
-                    }
+
+                processWithTelemetry(tracer, message, "ordered_process", () -> {
+
+                    var op = new OrderedProcessor((connection, event) -> {
+
+                        return processWithTelemetry(tracer, message, "message_transaction", () -> {
+                            try {
+                                subscriber.onMessage(new TransactionalEvent(connection, event));
+                                metrics.recordReceived(topic);
+                                return true;
+                            } catch (Exception e) {
+                                try {
+                                    subscriber.onError(e);
+                                } catch (Exception ignored) {
+                                }
+                                return false;
+                            }
+                        });
+
+                    });
+                    op.process(c, message);
+                    return null;
                 });
-                op.process(c, message);
+
             } catch (Exception e) {
                 try {
                     subscriber.onError(e);

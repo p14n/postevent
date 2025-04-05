@@ -1,6 +1,8 @@
 package com.p14n.postevent.broker;
 
-public enum SystemEvent {
+import com.p14n.postevent.data.Traceable;
+
+public enum SystemEvent implements Traceable {
 
     CatchupRequired,
     UnprocessedCheckRequired;
@@ -10,5 +12,20 @@ public enum SystemEvent {
     public SystemEvent withTopic(String topic) {
         this.topic = topic;
         return this;
+    }
+
+    @Override
+    public String id() {
+        return this.toString();
+    }
+
+    @Override
+    public String topic() {
+        return topic;
+    }
+
+    @Override
+    public String subject() {
+        return "";
     }
 }

@@ -2,6 +2,10 @@ package com.p14n.postevent;
 
 import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.data.Traceable;
+
+import io.opentelemetry.api.OpenTelemetry;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.CountDownLatch;
@@ -17,7 +21,31 @@ import org.junit.jupiter.api.Timeout;
 @Timeout(value = 2, unit = TimeUnit.SECONDS)
 class DefaultMessageBrokerTest {
 
-    private volatile DefaultMessageBroker<String, String> broker;
+    private class TestMessage implements Traceable {
+
+        private final String value;
+
+        public TestMessage(String value) {
+            this.value = value;
+        }
+
+        @Override
+        public String id() {
+            return "test-id";
+        }
+
+        @Override
+        public String topic() {
+            return "test-topic";
+        }
+
+        @Override
+        public String subject() {
+            return "test-subject";
+        }
+    }
+
+    private volatile DefaultMessageBroker<TestMessage, TestMessage> broker;
     private final String TOPIC = "topic";
 
     @AfterEach
@@ -35,9 +63,10 @@ class DefaultMessageBrokerTest {
 
     @BeforeEach
     void setUp() {
-        broker = new DefaultMessageBroker<>() {
+        var ot = OpenTelemetry.noop();
+        broker = new DefaultMessageBroker<TestMessage, TestMessage>(ot) {
             @Override
-            public String convert(String m) {
+            public TestMessage convert(TestMessage m) {
                 return m;
             }
         };
@@ -48,9 +77,9 @@ class DefaultMessageBrokerTest {
         CountDownLatch counter1 = new CountDownLatch(1);
         CountDownLatch counter2 = new CountDownLatch(1);
 
-        MessageSubscriber<String> subscriber1 = new MessageSubscriber<>() {
+        MessageSubscriber<TestMessage> subscriber1 = new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
                 counter1.countDown();
             }
 
@@ -59,9 +88,9 @@ class DefaultMessageBrokerTest {
             }
         };
 
-        MessageSubscriber<String> subscriber2 = new MessageSubscriber<>() {
+        MessageSubscriber<TestMessage> subscriber2 = new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
                 counter2.countDown();
             }
 
@@ -73,7 +102,7 @@ class DefaultMessageBrokerTest {
         broker.subscribe(TOPIC, subscriber1);
         broker.subscribe(TOPIC, subscriber2);
 
-        broker.publish(TOPIC, "test");
+        broker.publish(TOPIC, new TestMessage("test"));
 
         assertTrue(counter1.await(1, TimeUnit.SECONDS));
         assertTrue(counter2.await(1, TimeUnit.SECONDS));
@@ -81,7 +110,7 @@ class DefaultMessageBrokerTest {
 
     @Test
     void shouldSilentlyDropMessagesWithNoSubscribers() {
-        broker.publish(TOPIC, "test"); // Should not throw
+        broker.publish(TOPIC, new TestMessage("test")); // Should not throw
     }
 
     @Test
@@ -90,9 +119,9 @@ class DefaultMessageBrokerTest {
         CountDownLatch counter = new CountDownLatch(1);
         RuntimeException testException = new RuntimeException("test error");
 
-        MessageSubscriber<String> erroringSubscriber = new MessageSubscriber<>() {
+        MessageSubscriber<TestMessage> erroringSubscriber = new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
                 throw testException;
             }
 
@@ -104,7 +133,7 @@ class DefaultMessageBrokerTest {
         };
 
         broker.subscribe(TOPIC, erroringSubscriber);
-        broker.publish(TOPIC, "test");
+        broker.publish(TOPIC, new TestMessage("test"));
 
         assertTrue(counter.await(1, TimeUnit.SECONDS));
         assertSame(testException, caughtError.get());
@@ -116,9 +145,9 @@ class DefaultMessageBrokerTest {
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
 
-        MessageSubscriber<String> subscriber = new MessageSubscriber<>() {
+        MessageSubscriber<TestMessage> subscriber = new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
                 doneLatch.countDown();
             }
 
@@ -134,7 +163,7 @@ class DefaultMessageBrokerTest {
             new Thread(() -> {
                 try {
                     startLatch.await();
-                    broker.publish(TOPIC, "test");
+                    broker.publish(TOPIC, new TestMessage("test"));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -148,10 +177,10 @@ class DefaultMessageBrokerTest {
     @Test
     void shouldPreventPublishingAfterClose() {
         broker.close();
-        assertThrows(IllegalStateException.class, () -> broker.publish(TOPIC, "test"));
+        assertThrows(IllegalStateException.class, () -> broker.publish(TOPIC, new TestMessage("test")));
         assertThrows(IllegalStateException.class, () -> broker.subscribe(TOPIC, new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
             }
 
             @Override
@@ -164,9 +193,9 @@ class DefaultMessageBrokerTest {
     void shouldStopDeliveringMessagesAfterUnsubscribe() throws InterruptedException {
         AtomicInteger messageCount = new AtomicInteger();
         CountDownLatch counter = new CountDownLatch(1);
-        MessageSubscriber<String> subscriber = new MessageSubscriber<>() {
+        MessageSubscriber<TestMessage> subscriber = new MessageSubscriber<>() {
             @Override
-            public void onMessage(String message) {
+            public void onMessage(TestMessage message) {
                 messageCount.incrementAndGet();
                 counter.countDown();
             }
@@ -177,11 +206,11 @@ class DefaultMessageBrokerTest {
         };
 
         broker.subscribe(TOPIC, subscriber);
-        broker.publish(TOPIC, "first message");
+        broker.publish(TOPIC, new TestMessage("first message"));
         assertTrue(counter.await(1, TimeUnit.SECONDS), "Should receive message while subscribed");
 
         broker.unsubscribe(TOPIC, subscriber);
-        broker.publish(TOPIC, "second message");
+        broker.publish(TOPIC, new TestMessage("second message"));
         Thread.sleep(100);
         assertEquals(1, messageCount.get(), "Should not receive message after unsubscribe");
     }

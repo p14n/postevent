@@ -6,6 +6,8 @@ import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
+
+import io.opentelemetry.api.OpenTelemetry;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,11 +49,13 @@ public class CatchupServiceTest {
                 .createMessagesTableIfNotExists()
                 .createContiguousHwmTableIfNotExists();
 
+        var ot = OpenTelemetry.noop();
+
         // Initialize components
         catchupServer = new CatchupServer(pg.getPostgresDatabase());
-        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, new SystemEventBroker());
-        persistentBroker = new PersistentBroker<>(new EventMessageBroker(), pg.getPostgresDatabase(),
-                new SystemEventBroker());
+        catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, new SystemEventBroker(ot));
+        persistentBroker = new PersistentBroker<>(new EventMessageBroker(ot), pg.getPostgresDatabase(),
+                new SystemEventBroker(ot));
     }
 
     @AfterEach
