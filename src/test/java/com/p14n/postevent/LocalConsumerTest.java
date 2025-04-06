@@ -7,6 +7,8 @@ import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.data.PostEventConfig;
 import com.p14n.postevent.db.DatabaseSetup;
+
+import io.opentelemetry.api.OpenTelemetry;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,8 +38,9 @@ class LocalConsumerTest {
         var setup = new DatabaseSetup(pg.getJdbcUrl("postgres", "postgres"), "postgres", "postgres");
         setup.createSchemaIfNotExists();
         setup.createTableIfNotExists("test");
+        var ot = OpenTelemetry.noop();
 
-        broker = new EventMessageBroker();
+        broker = new EventMessageBroker(ot);
         PostEventConfig config = new ConfigData(
                 "test",
                 Set.of("test_topic"), // renamed from "test"

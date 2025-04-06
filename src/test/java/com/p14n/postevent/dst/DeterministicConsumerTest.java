@@ -1,12 +1,15 @@
-package com.p14n.postevent.broker;
+package com.p14n.postevent.dst;
 
 import com.p14n.postevent.ConsumerClient;
 import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
+import com.p14n.postevent.broker.TestAsyncExecutor;
+import com.p14n.postevent.broker.TransactionalEvent;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.example.ExampleUtil;
 
+import io.opentelemetry.api.OpenTelemetry;
 import net.jqwik.api.*;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +34,7 @@ class DeterministicConsumerTest {
         logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
         var executor = new TestAsyncExecutor();
+        var ot = OpenTelemetry.noop();
 
         try (var pg = ExampleUtil.embeddedPostgres();) {
 
@@ -46,12 +50,12 @@ class DeterministicConsumerTest {
                     "postgres");
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor, ot);
 
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(executor);
+            var client = new ConsumerClient(ot, executor);
             client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             var receivedEventIdns = new CopyOnWriteArrayList<Long>();
@@ -143,6 +147,8 @@ class DeterministicConsumerTest {
 
         try (var pg = ExampleUtil.embeddedPostgres();) {
 
+            var ot = OpenTelemetry.noop();
+
             var dataSource = pg.getPostgresDatabase();
 
             var config = new ConfigData(
@@ -157,12 +163,12 @@ class DeterministicConsumerTest {
             var executor = new TestAsyncExecutor();
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor, ot);
 
             server.start(PORT);
 
             // Start client
-            var client = new ConsumerClient(executor);
+            var client = new ConsumerClient(ot, executor);
             client.start(Set.of(TOPIC), dataSource, "localhost", PORT);
 
             logger.atInfo().log("Testing with seed: {}", seed);
@@ -256,6 +262,7 @@ class DeterministicConsumerTest {
         logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
         var executor = new TestAsyncExecutor();
+        var ot = OpenTelemetry.noop();
 
         String topic1 = "test_topic_one";
         String topic2 = "test_topic_two";
@@ -274,15 +281,15 @@ class DeterministicConsumerTest {
                     "postgres");
 
             // Start server
-            var server = new ConsumerServer(dataSource, config, executor);
+            var server = new ConsumerServer(dataSource, config, executor, ot);
             server.start(PORT);
 
             // Start client for topic1
-            var client1 = new ConsumerClient(executor);
+            var client1 = new ConsumerClient(ot, executor);
             client1.start(Set.of(topic1), dataSource, "localhost", PORT);
 
             // Start client for topic2
-            var client2 = new ConsumerClient(executor);
+            var client2 = new ConsumerClient(ot, executor);
             client2.start(Set.of(topic2), dataSource, "localhost", PORT);
 
             // Track received events per topic

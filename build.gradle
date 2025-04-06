@@ -49,6 +49,18 @@ dependencies {
     testRuntimeOnly 'ch.qos.logback:logback-classic:1.4.11'
     testImplementation 'org.mockito:mockito-core:3.12.4'
 
+    // OpenTelemetry core dependencies
+    implementation 'io.opentelemetry:opentelemetry-api:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-sdk:1.32.0'
+    
+    // Exporters - choose based on your needs
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.32.0'
+
+    // Instrumentation for GRPC
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.32.0-alpha'
+    
+    // Logging integration
+    //implementation 'io.opentelemetry:opentelemetry-extension-logging:1.32.0'
 }
 
 testlogger {
@@ -78,6 +90,9 @@ test {
     maxParallelForks = 1
     failFast = true
     testLogging.showStandardStreams = true
+}
+task fastTest( type: Test ) {
+    exclude '**/dst/**'
 }
 
 jar {
