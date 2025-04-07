@@ -97,7 +97,6 @@ task fastTest( type: Test ) {
 
 jar {
     manifest {
-        attributes 'Main-Class': 'com.p14n.postevent.Main'
     }
 }
 
