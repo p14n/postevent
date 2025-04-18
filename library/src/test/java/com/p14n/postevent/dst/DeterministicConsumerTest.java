@@ -124,6 +124,10 @@ class DeterministicConsumerTest {
             logger.atInfo().log("Received events: {}", receivedEventIds.size());
             logger.atInfo().log("Received event IDs: {}", receivedEventIdns);
 
+            close(server);
+            close(client);
+            close(executor);
+
             // Assertions
             assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
             assertEquals(numberOfEvents, publishedEventIds.size(),
@@ -136,9 +140,7 @@ class DeterministicConsumerTest {
                 assertTrue(receivedEventIdns.get(i) < receivedEventIdns.get(i + 1),
                         "Events were not received in order");
             }
-            close(server);
-            close(client);
-            close(executor);
+
         }
     }
 
@@ -236,6 +238,10 @@ class DeterministicConsumerTest {
             logger.atInfo().log("Received events: {}", receivedEventIds.size());
             logger.atInfo().log("Received event IDs: {}", receivedEventIdns);
 
+            close(server);
+            close(client);
+            close(executor);
+
             // Assertions
             assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
             assertEquals(numberOfEvents, publishedEventIds.size(),
@@ -251,9 +257,6 @@ class DeterministicConsumerTest {
                             "Events were not received in order");
                 }
             }
-            close(server);
-            close(client);
-            close(executor);
         }
     }
 
@@ -381,6 +384,11 @@ class DeterministicConsumerTest {
                 TestUtil.logEventsInHwmTable(connection, logger);
             }
             Thread.sleep(100);
+            close(server);
+            close(client1);
+            close(client2);
+            close(executor);
+
             // Assertions
             assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
 
@@ -404,10 +412,6 @@ class DeterministicConsumerTest {
             assertTrue(Collections.disjoint(receivedEventIdsTopic2, publishedEventIdsTopic1),
                     "Topic2 client received events from topic1");
 
-            close(server);
-            close(client1);
-            close(client2);
-            close(executor);
         }
     }
 

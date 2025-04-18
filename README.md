@@ -111,3 +111,8 @@ graph LR;
    CC-->PR;
    CS-->CC;
 ```
+
+### Notes
+```
+docker run --name postevent -v ./app/postgres:/docker-entrypoint-initdb.d -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres --publish 5432:5432 -d postgres
+```

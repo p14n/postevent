@@ -10,6 +10,8 @@ import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
 
+import io.opentelemetry.api.OpenTelemetry;
+
 public class App {
 
     private static String[] envVals(String name) {
@@ -22,7 +24,7 @@ public class App {
 
     public static void main(String[] args) {
         System.out.println("Hello World!");
-        String affinity = "";
+        String affinity = "local";
 
         var write = envVals("APP_WRITE_TOPICS");
         var read = envVals("APP_READ_TOPICS");
@@ -41,12 +43,11 @@ public class App {
     }
 
     private static void writeContinuously(DataSource ds, String affinity, String[] write) {
-        var gap = 10000;
+        var gap = 1000;
         var direction = -1;
         var running = true;
         while (running) {
             try {
-                Thread.sleep(gap);
                 for (var wt : write) {
                     try {
                         var id = UUID.randomUUID().toString();
@@ -65,11 +66,12 @@ public class App {
                     }
                 }
                 gap += direction * 10;
-                if (gap < 100) {
+                if (gap < 10) {
                     direction = 1;
-                } else if (gap > 10000) {
+                } else if (gap > 1000) {
                     direction = -1;
                 }
+                Thread.sleep(gap);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -82,7 +84,7 @@ public class App {
                 affinity,
                 Set.of(write),
                 dbhost,
-                5443,
+                5432,
                 "postgres",
                 "postgres",
                 "postgres");
@@ -106,21 +108,11 @@ public class App {
                 }
             }
 
-            if (topichosts.length > 0) {
-                cc = new ConsumerClient(ot);
-                for (var topic : read) {
-                    cc.subscribe(topic, (ev) -> {
-                        for (var wt : write) {
-                            try {
-                                Publisher.publish(ev.event(), ev.connection(), wt);
-                            } catch (SQLException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
-                }
-                cc.start(Set.of(read), ds, topichosts[0], 50052);
-
+            if (topichosts.length == 1 && topichosts[0].equals("localhost")) {
+                cc = runConsumerClient(new String[]{}, read, topichosts, ds, ot);
+                writeContinuously(ds, affinity, write);
+            } else if (topichosts.length > 0) {
+                cc = runConsumerClient(write, read, topichosts, ds, ot);
                 try {
                     Thread.currentThread().join();
                 } catch (InterruptedException e) {
@@ -135,6 +127,25 @@ public class App {
             close(cc);
             close(cs);
         }
+    }
+
+    private static ConsumerClient runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
+            OpenTelemetry ot) {
+        ConsumerClient cc;
+        cc = new ConsumerClient(ot);
+        cc.start(Set.of(read), ds, topichosts[0], 50052);
+        for (var topic : read) {
+            cc.subscribe(topic, (ev) -> {
+                for (var wt : write) {
+                    try {
+                        Publisher.publish(ev.event(), ev.connection(), wt);
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+        return cc;
     }
 
 }
