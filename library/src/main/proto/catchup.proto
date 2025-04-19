@@ -36,4 +36,5 @@ message Event {
   bytes data = 7;
   string time = 8;
   int64 idn = 9;
-} 
+  string traceparent = 10;
+}

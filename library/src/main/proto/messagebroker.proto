@@ -27,4 +27,5 @@ message EventResponse {
   bytes data = 8;
   int64 idn = 9;
   string topic = 10;
+  string traceparent = 11;
 }

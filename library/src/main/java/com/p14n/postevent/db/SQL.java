@@ -6,9 +6,9 @@ import java.sql.*;
 
 public class SQL {
 
-    public static String CORE_COLS = "id, source, type, datacontenttype, dataschema, subject, data";
+    public static String CORE_COLS = "id, source, type, datacontenttype, dataschema, subject, data, traceparent";
     public static String EXT_COLS = CORE_COLS + ", time, idn, topic";
-    public static String CORE_PH = "?,?,?,?,?,?,?";
+    public static String CORE_PH = "?,?,?,?,?,?,?,?";
     public static String EXT_PH = CORE_PH + ",?,?,?";
 
     public static Event eventFromResultSet(ResultSet rs, String topic) throws SQLException {
@@ -22,7 +22,8 @@ public class SQL {
                 rs.getBytes("data"),
                 rs.getTimestamp("time").toInstant(),
                 rs.getLong("idn"),
-                topic);
+                topic,
+                rs.getString("traceparent"));
     }
 
     public static void setEventOnStatement(PreparedStatement stmt, Event event) throws SQLException {
@@ -33,12 +34,13 @@ public class SQL {
         stmt.setString(5, event.dataschema());
         stmt.setString(6, event.subject());
         stmt.setBytes(7, event.data());
+        stmt.setString(8, event.traceparent());
     }
 
     public static void setTimeIDNAndTopic(PreparedStatement stmt, Event event) throws SQLException {
-        stmt.setTimestamp(8, Timestamp.from(event.time()));
-        stmt.setLong(9, event.idn());
-        stmt.setString(10, event.topic());
+        stmt.setTimestamp(9, Timestamp.from(event.time()));
+        stmt.setLong(10, event.idn());
+        stmt.setString(11, event.topic());
     }
 
     public static void closeConnection(Connection conn) {

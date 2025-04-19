@@ -81,6 +81,7 @@ public class DatabaseSetup {
                         subject VARCHAR(255),
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE default current_timestamp,
+                        traceparent VARCHAR(55),
                         UNIQUE (id, source)
                     )""", topic);
 
@@ -111,6 +112,7 @@ public class DatabaseSetup {
                         data bytea,
                         time TIMESTAMP WITH TIME ZONE,
                         status VARCHAR(1) DEFAULT 'u',
+                        traceparent VARCHAR(55),
                         PRIMARY KEY (topic,idn)
                     )""";
 
@@ -155,4 +157,5 @@ public class DatabaseSetup {
         ds.setPassword(cfg.dbPassword());
         return ds;
     }
+
 }

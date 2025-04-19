@@ -145,6 +145,7 @@ public class CatchupGrpcIntegrationTest {
                 data,
                 time,
                 idn,
-                "topic");
+                "topic",
+                null);
     }
 }

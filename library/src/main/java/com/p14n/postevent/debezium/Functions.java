@@ -27,7 +27,8 @@ public class Functions {
                     r.get("data").binaryValue(),
                     Instant.parse(r.get("time").asText()),
                     r.get("idn").asLong(),
-                    topic.asText());
+                    topic.asText(),
+                    r.get("traceparent").asText());
         }
         return null;
     }

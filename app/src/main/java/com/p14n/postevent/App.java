@@ -10,7 +10,9 @@ import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
 
+import com.p14n.postevent.telemetry.OpenTelemetryFunctions;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 
 public class App {
 
@@ -42,7 +44,7 @@ public class App {
         }
     }
 
-    private static void writeContinuously(DataSource ds, String affinity, String[] write) {
+    private static void writeContinuously(DataSource ds, String affinity, String[] write, OpenTelemetry ot) {
         var gap = 1000;
         var direction = -1;
         var running = true;
@@ -58,7 +60,8 @@ public class App {
                                         "string",
                                         null,
                                         id,
-                                        "test".getBytes()),
+                                        "test".getBytes(),
+                                        OpenTelemetryFunctions.serializeTraceContext(ot)),
                                 ds,
                                 wt);
                     } catch (SQLException e) {
@@ -95,8 +98,9 @@ public class App {
         // 4 read only - client only
         ConsumerServer cs = null;
         ConsumerClient cc = null;
-        var ds = DatabaseSetup.createPool(cfg);
+
         var ot = Opentelemetry.create("postevent");
+        var ds = JdbcTelemetry.create(ot).wrap(DatabaseSetup.createPool(cfg));
 
         try {
             if (write.length > 0) {
@@ -109,8 +113,8 @@ public class App {
             }
 
             if (topichosts.length == 1 && topichosts[0].equals("localhost")) {
-                cc = runConsumerClient(new String[]{}, read, topichosts, ds, ot);
-                writeContinuously(ds, affinity, write);
+                cc = runConsumerClient(new String[] {}, read, topichosts, ds, ot);
+                writeContinuously(ds, affinity, write, ot);
             } else if (topichosts.length > 0) {
                 cc = runConsumerClient(write, read, topichosts, ds, ot);
                 try {
@@ -120,7 +124,7 @@ public class App {
                 }
 
             } else {
-                writeContinuously(ds, affinity, write);
+                writeContinuously(ds, affinity, write,ot);
             }
 
         } finally {

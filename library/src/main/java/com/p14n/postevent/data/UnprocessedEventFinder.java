@@ -29,7 +29,7 @@ public class UnprocessedEventFinder {
         logger.atInfo().log("Finding all unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn, topic FROM postevent.messages " +
+                "time, idn, topic, traceparent FROM postevent.messages " +
                 "WHERE status = 'u' " +
                 "ORDER BY idn ASC";
 
@@ -55,7 +55,7 @@ public class UnprocessedEventFinder {
         logger.atInfo().log("Finding unprocessed events for subject: {}", subject);
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn, topic FROM postevent.messages " +
+                "time, idn, topic, traceparent FROM postevent.messages " +
                 "WHERE status = 'u' AND subject = ? " +
                 "ORDER BY time ASC";
 
@@ -83,7 +83,7 @@ public class UnprocessedEventFinder {
         logger.atInfo().log("Finding up to " + limit + " unprocessed events");
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
-                "time, idn, topic FROM postevent.messages " +
+                "time, idn, topic, traceparent FROM postevent.messages " +
                 "WHERE status = 'u' " +
                 "ORDER BY time ASC " +
                 "LIMIT ?";
@@ -135,6 +135,7 @@ public class UnprocessedEventFinder {
         Instant time = rs.getTimestamp("time").toInstant();
         long idn = rs.getLong("idn");
         String topic = rs.getString("topic");
+        String traceparent = rs.getString("traceparent");
 
         return Event.create(
                 id,
@@ -146,7 +147,8 @@ public class UnprocessedEventFinder {
                 data,
                 time,
                 idn,
-                topic);
+                topic,
+                traceparent);
     }
 
     /**

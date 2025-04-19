@@ -81,7 +81,8 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
                 grpcEvent.getData().toByteArray(),
                 time.toInstant(),
                 grpcEvent.getIdn(),
-                topic);
+                topic,
+                grpcEvent.getTraceparent());
     }
 
     @Override

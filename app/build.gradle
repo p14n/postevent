@@ -23,7 +23,9 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.12'
 
     // Exporters - choose based on your needs
-    //implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.32.0'
+    implementation("io.opentelemetry.instrumentation:opentelemetry-jdbc:1.32.0-alpha")
+
     //implementation 'software.amazon.opentelemetry:aws-opentelemetry-agent:latest-version'
 
 

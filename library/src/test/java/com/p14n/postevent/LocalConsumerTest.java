@@ -92,7 +92,8 @@ class LocalConsumerTest {
         Event testEvent = Event.create(
                 "test-id", "test-source", "test-type",
                 "text/plain", "test-schema", "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(),
+                null);
 
         Publisher.publish(testEvent, conn, "test_topic");
 

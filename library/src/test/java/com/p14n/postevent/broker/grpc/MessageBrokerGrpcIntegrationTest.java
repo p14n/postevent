@@ -201,7 +201,8 @@ public class MessageBrokerGrpcIntegrationTest {
                 data,
                 time,
                 idn,
-                TOPIC);
+                TOPIC,
+                null);
     }
 
     /**

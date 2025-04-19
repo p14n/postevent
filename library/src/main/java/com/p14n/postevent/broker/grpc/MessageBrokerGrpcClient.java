@@ -90,7 +90,8 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
                 grpcEvent.getData().toByteArray(),
                 time == null ? Instant.now() : time.toInstant(),
                 grpcEvent.getIdn(),
-                grpcEvent.getTopic());
+                grpcEvent.getTopic(),
+                grpcEvent.getTraceparent());
     }
 
     @Override

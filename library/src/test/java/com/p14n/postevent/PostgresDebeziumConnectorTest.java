@@ -117,7 +117,7 @@ class PostgresDebeziumConnectorTest {
         debezium.stop();
         assertEquals(
                 "{\"idn\":1,\"id\":\"1\",\"source\":\"test$source\",\"type\":\"test$type\",\"datacontenttype\":\"text/plain\","
-                        + "\"dataschema\":\"none\",\"subject\":\"test$subject\",\"data\":\"AT19FtetT++2G9lbdlyM6w==\",\"time\":\"2024-10-27T22:11:07.937038Z\"}",
+                        + "\"dataschema\":\"none\",\"subject\":\"test$subject\",\"data\":\"AT19FtetT++2G9lbdlyM6w==\",\"time\":\"2024-10-27T22:11:07.937038Z\",\"traceparent\":null}",
                 result.get());
     }
 

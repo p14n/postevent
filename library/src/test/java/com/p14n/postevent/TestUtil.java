@@ -18,7 +18,8 @@ public class TestUtil {
                 "application/json",
                 null,
                 "test-subject",
-                ("{\"value\":" + i + "}").getBytes());
+                ("{\"value\":" + i + "}").getBytes(),
+                null);
     }
 
     public static Event createTestEvent(int i, String subject) {
@@ -29,7 +30,8 @@ public class TestUtil {
                 "application/json",
                 null,
                 subject,
-                ("{\"value\":" + i + "}").getBytes());
+                ("{\"value\":" + i + "}").getBytes(),
+        null);
     }
 
     public static void logEventsInMessagesTable(Connection connection, Logger log) throws Exception {

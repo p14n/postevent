@@ -280,6 +280,7 @@ public class OrderedProcessorTest {
                 data,
                 time,
                 idn,
-                "topic");
+                "topic",
+                null);
     }
 }

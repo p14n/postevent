@@ -122,7 +122,8 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                largeData);
+                largeData,
+                null);
 
         // When
         Publisher.publish(event, conn, "test_topic");
@@ -141,7 +142,8 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(),
+                null);
         conn.close();
 
         // When/Then
@@ -158,7 +160,8 @@ class PublisherTest {
                 "application/json",
                 "test-schema",
                 "test-subject",
-                "test-data".getBytes());
+                "test-data".getBytes(),
+                null);
 
         // When/Then
         assertThrows(SQLException.class, () -> Publisher.publish(event, conn, "non_existent_topic"));
@@ -184,7 +187,8 @@ class PublisherTest {
                             "application/json",
                             "test-schema",
                             "test-subject",
-                            "test-data".getBytes());
+                            "test-data".getBytes(),
+                            null);
                     Publisher.publish(event, conn, "test_topic");
                     latch.countDown();
                 } catch (SQLException e) {
