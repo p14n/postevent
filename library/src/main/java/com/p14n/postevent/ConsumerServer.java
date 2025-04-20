@@ -16,6 +16,8 @@ import com.p14n.postevent.data.ConfigData;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.protobuf.services.HealthStatusManager;
 import io.opentelemetry.api.OpenTelemetry;
 
 import org.slf4j.Logger;
@@ -28,6 +30,8 @@ public class ConsumerServer implements AutoCloseable {
     private ConfigData cfg;
     private List<AutoCloseable> closeables;
     private Server server;
+
+    HealthStatusManager health;
     private AsyncExecutor asyncExecutor;
     OpenTelemetry ot;
 
@@ -57,15 +61,17 @@ public class ConsumerServer implements AutoCloseable {
 
         try {
             lc.start();
+            health = new HealthStatusManager();
             server = sb.addService(grpcServer)
                     .addService(catchupService)
+                    .addService(health.getHealthService())
                     .permitKeepAliveTime(1, TimeUnit.HOURS)
                     .permitKeepAliveWithoutCalls(true)
                     .build()
                     .start();
 
             logger.atInfo().log("Consumer server started successfully");
-
+            health.setStatus("", HealthCheckResponse.ServingStatus.SERVING);
         } catch (Exception e) {
             logger.atError()
                     .setCause(e)
@@ -79,6 +85,7 @@ public class ConsumerServer implements AutoCloseable {
     public void stop() {
         logger.atInfo().log("Stopping consumer server");
 
+        health.enterTerminalState();
         server.shutdown();
         for (var c : closeables) {
             try {

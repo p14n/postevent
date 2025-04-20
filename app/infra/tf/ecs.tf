@@ -95,11 +95,12 @@ resource "aws_lb_target_group" "postevent" {
     enabled             = true
     healthy_threshold   = 2
     interval            = 30
-    matcher             = "200"
-    path                = "/health"
+    matcher             = "0"
+    path                = "grpc.health.v1.Health/Check"
     port                = "traffic-port"
     timeout             = 5
     unhealthy_threshold = 3
+    protocol            = "gRPC"
   }
 }
 
