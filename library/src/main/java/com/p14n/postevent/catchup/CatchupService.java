@@ -172,7 +172,6 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
             if (updated == 0) {
                 LOGGER.warn("Failed to update HWM for topic " + topicName +
                         ". Current HWM may have changed.");
-                throw new SQLException("Optimistic locking failure: HWM has been modified by another process");
             }
         }
     }
