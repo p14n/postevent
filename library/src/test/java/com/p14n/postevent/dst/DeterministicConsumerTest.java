@@ -19,18 +19,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
 class DeterministicConsumerTest {
     private static final Logger logger = LoggerFactory.getLogger(DeterministicConsumerTest.class);
     private static final int PORT = 50052;
     private static final String TOPIC = "test_topic";
 
-    @Property(tries = 10)
+    @Property(tries = 5)
     void testDeterministicEventDelivery(@ForAll("randomSeeds") long seed) throws Exception {
         logger.atInfo().log("Testing with seed: {}", seed);
         Random random = new Random(seed);
@@ -145,7 +146,7 @@ class DeterministicConsumerTest {
         }
     }
 
-    @Property(tries = 2)
+    @Property(tries = 5)
     void testDeterministicEventDeliveryBySubject(@ForAll("randomSeeds") long seed) throws Exception {
 
         try (var pg = ExampleUtil.embeddedPostgres();) {
@@ -261,6 +262,11 @@ class DeterministicConsumerTest {
         }
     }
 
+    @Test
+    void testFixedSeed() throws Exception {
+        testMultipleTopicsWithDedicatedClients(3139693736025346304L);
+    }
+
     @Property(tries = 5)
     void testMultipleTopicsWithDedicatedClients(@ForAll("randomSeeds") long seed) throws Exception {
         logger.atInfo().log("Testing with seed: {}", seed);
@@ -374,6 +380,10 @@ class DeterministicConsumerTest {
                         receivedEventIdsTopic1.size(), numberOfEventsTopic1,
                         receivedEventIdsTopic2.size(), numberOfEventsTopic2);
             }
+            logger.atInfo().log("Completed at Tick {}: Topic1 received {}/{}, Topic2 received {}/{} events",
+                    tickCount,
+                    receivedEventIdsTopic1.size(), numberOfEventsTopic1,
+                    receivedEventIdsTopic2.size(), numberOfEventsTopic2);
 
             Thread.sleep(2000);
 
@@ -391,7 +401,7 @@ class DeterministicConsumerTest {
             close(executor);
 
             // Assertions
-            assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ")");
+            assertTrue(tickCount < maxTicks, "Test did not complete within maximum ticks(" + maxTicks + ") - actual "+tickCount);
 
             // Topic1 assertions
             assertEquals(numberOfEventsTopic1, publishedEventIdsTopic1.size(),
