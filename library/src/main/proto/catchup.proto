@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.p14n.postevent.catchup.grpc";
+option java_outer_classname = "CatchupProto";
+
+package catchup;
+
+// The catchup service definition
+service CatchupService {
+  // Fetch events from a specific point
+  rpc FetchEvents (FetchEventsRequest) returns (FetchEventsResponse) {}
+}
+
+// The request message containing fetch parameters
+message FetchEventsRequest {
+  string topic = 1;
+  int64 start_after = 2;
+  int64 end = 3;
+  int32 max_results = 4;
+}
+
+// The response message containing events
+message FetchEventsResponse {
+  repeated Event events = 1;
+}
+
+// Event message
+message Event {
+  string id = 1;
+  string source = 2;
+  string type = 3;
+  string data_content_type = 4;
+  string dataschema = 5;
+  string subject = 6;
+  bytes data = 7;
+  string time = 8;
+  int64 idn = 9;
+  string traceparent = 10;
+}
