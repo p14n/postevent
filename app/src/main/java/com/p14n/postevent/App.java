@@ -1,5 +1,7 @@
 package com.p14n.postevent;
 
+import org.postgresql.Driver;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.UUID;
@@ -26,9 +28,10 @@ public class App {
         return new String[] {};
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException {
         System.out.println("Hello World!");
-        String affinity = "local";
+        DriverManager.registerDriver(new Driver());
+        String affinity = UUID.randomUUID().toString().substring(0, 8);
 
         var write = envVals("APP_WRITE_TOPICS");
         var read = envVals("APP_READ_TOPICS");
