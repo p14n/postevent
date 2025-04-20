@@ -255,6 +255,8 @@ replay_pid*
 ### clojure ###
 .clj-kondo/.cache
 .lsp
+.nrepl-port
+.rebel_readline_history
 
 .DS_Store
 bin
