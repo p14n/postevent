@@ -28,4 +28,9 @@ public enum SystemEvent implements Traceable {
     public String subject() {
         return "";
     }
+
+    @Override
+    public String traceparent() {
+        return null;
+    }
 }

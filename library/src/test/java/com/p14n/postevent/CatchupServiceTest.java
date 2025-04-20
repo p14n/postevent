@@ -54,7 +54,7 @@ public class CatchupServiceTest {
         // Initialize components
         catchupServer = new CatchupServer(pg.getPostgresDatabase());
         catchupService = new CatchupService(pg.getPostgresDatabase(), catchupServer, new SystemEventBroker(ot));
-        persistentBroker = new PersistentBroker<>(new EventMessageBroker(ot), pg.getPostgresDatabase(),
+        persistentBroker = new PersistentBroker<>(new EventMessageBroker(ot,"test"), pg.getPostgresDatabase(),
                 new SystemEventBroker(ot));
     }
 

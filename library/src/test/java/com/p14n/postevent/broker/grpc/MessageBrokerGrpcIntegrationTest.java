@@ -212,7 +212,7 @@ public class MessageBrokerGrpcIntegrationTest {
         private final List<Event> publishedEvents = new ArrayList<>();
 
         public TestMessageBroker(OpenTelemetry ot) {
-            super(ot);
+            super(ot,"test");
         }
 
         @Override

@@ -6,11 +6,11 @@ public class SystemEventBroker extends
         DefaultMessageBroker<SystemEvent, SystemEvent> {
 
     public SystemEventBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
-        super(asyncExecutor, ot);
+        super(asyncExecutor, ot, "system_events");
     }
 
     public SystemEventBroker(OpenTelemetry ot) {
-        super(ot);
+        super(ot,"system_events");
     }
 
     @Override

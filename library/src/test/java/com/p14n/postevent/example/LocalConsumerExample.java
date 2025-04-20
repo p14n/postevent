@@ -23,7 +23,7 @@ public class LocalConsumerExample {
         CountDownLatch l = new CountDownLatch(1);
         var ot = OpenTelemetry.noop();
 
-        try (var mb = new EventMessageBroker(ot);
+        try (var mb = new EventMessageBroker(ot,"local_consumer");
                 EmbeddedPostgres pg = ExampleUtil.embeddedPostgres();
                 var lc = new LocalConsumer<>(new ConfigData(
                         "local",

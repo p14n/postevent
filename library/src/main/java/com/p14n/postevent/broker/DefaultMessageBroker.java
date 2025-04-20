@@ -21,14 +21,17 @@ public abstract class DefaultMessageBroker<InT extends Traceable, OutT>
     protected final BrokerMetrics metrics;
     protected final Tracer tracer;
 
-    public DefaultMessageBroker(OpenTelemetry ot) {
-        this(new DefaultExecutor(2), ot);
+    protected final OpenTelemetry openTelemetry;
+
+    public DefaultMessageBroker(OpenTelemetry ot,String scopeName) {
+        this(new DefaultExecutor(2), ot,scopeName);
     }
 
-    public DefaultMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+    public DefaultMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot,String scopeName) {
         this.asyncExecutor = asyncExecutor;
-        this.metrics = new BrokerMetrics(ot.getMeter("default-message-broker"));
-        this.tracer = ot.getTracer("default-message-broker");
+        this.metrics = new BrokerMetrics(ot.getMeter(scopeName));
+        this.tracer = ot.getTracer(scopeName);
+        this.openTelemetry = ot;
     }
 
     protected boolean canProcess(String topic, InT message) {
@@ -60,9 +63,9 @@ public abstract class DefaultMessageBroker<InT extends Traceable, OutT>
         Set<MessageSubscriber<OutT>> subscribers = topicSubscribers.get(topic);
         if (subscribers != null) {
 
-            processWithTelemetry(tracer, message, "publish_message", () -> {
+            processWithTelemetry(openTelemetry,tracer, message, "publish_message", () -> {
                 for (MessageSubscriber<OutT> subscriber : subscribers) {
-                    asyncExecutor.submit(() -> processWithTelemetry(tracer, message, "process_message",
+                    asyncExecutor.submit(() -> processWithTelemetry(openTelemetry,tracer, message, "process_message",
                             () -> {
                                 try {
                                     subscriber.onMessage(convert(message));

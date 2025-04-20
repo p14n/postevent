@@ -74,7 +74,7 @@ class PostgresDebeziumConnectorTest {
     void engineStartsWithConsumer() throws IOException, InterruptedException {
         AtomicBoolean consumerCalled = new AtomicBoolean(false);
         ConfigData cfg = new ConfigData("test", Set.of("test"), "localhost", pg.getPort(), "postgres", "postgres",
-                "postgres", null);
+                "postgres",500, null);
         engine.start(cfg, (ChangeEvent<String, String> event) -> {
             consumerCalled.set(true);
         });
@@ -87,7 +87,7 @@ class PostgresDebeziumConnectorTest {
     void engineReceivesMessage() throws SQLException, IOException, InterruptedException {
 
         ConfigData cfg = new ConfigData("test", Set.of("test"), "localhost", pg.getPort(), "postgres", "postgres",
-                "postgres", null);
+                "postgres", 500,null);
         var latch = new CountDownLatch(1);
         var result = new AtomicReference<String>();
         var debezium = new DebeziumServer();

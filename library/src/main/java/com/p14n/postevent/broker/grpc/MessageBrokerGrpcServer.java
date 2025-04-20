@@ -123,6 +123,10 @@ public class MessageBrokerGrpcServer extends MessageBrokerServiceGrpc.MessageBro
             builder.setTopic(event.topic());
         }
 
+        if (event.traceparent() != null) {
+            builder.setTraceparent(event.traceparent());
+        }
+
         return builder.build();
     }
 }

@@ -29,7 +29,8 @@ public class DebeziumServer {
                         String dbPort,
                         String dbUser,
                         String dbPassword,
-                        String dbName) {
+                        String dbName,
+                        int pollInterval) {
                 final Properties props = new Properties();
 
                 // Create comma-separated list of tables
@@ -46,6 +47,7 @@ public class DebeziumServer {
                 props.setProperty("offset.storage.jdbc.user", dbUser);
                 props.setProperty("offset.storage.jdbc.password", dbPassword);
                 props.setProperty("offset.flush.interval.ms", "1000");
+                props.setProperty("poll.interval.ms",String.valueOf(pollInterval));
                 props.setProperty("database.hostname", dbHost);
                 props.setProperty("plugin.name", "pgoutput");
                 props.setProperty("database.port", dbPort);
@@ -103,7 +105,7 @@ public class DebeziumServer {
                                                 : props(cfg.affinity(), cfg.topics(), cfg.dbHost(),
                                                                 String.valueOf(cfg.dbPort()), cfg.dbUser(),
                                                                 cfg.dbPassword(),
-                                                                cfg.dbName()))
+                                                                cfg.dbName(), cfg.pollInterval()))
                                 .notifying(consumer)
                                 .build();
                 executor = Executors.newSingleThreadExecutor(

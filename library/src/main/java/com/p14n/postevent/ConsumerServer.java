@@ -49,7 +49,7 @@ public class ConsumerServer implements AutoCloseable {
     public void start(ServerBuilder<?> sb) throws IOException, InterruptedException {
         logger.atInfo().log("Starting consumer server");
 
-        var mb = new EventMessageBroker(asyncExecutor, ot);
+        var mb = new EventMessageBroker(asyncExecutor, ot,"consumer_server");
         var lc = new LocalConsumer<>(cfg, mb);
         var grpcServer = new MessageBrokerGrpcServer(mb);
         var catchupServer = new CatchupServer(ds);

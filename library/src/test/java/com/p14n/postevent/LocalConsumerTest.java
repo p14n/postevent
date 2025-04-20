@@ -40,7 +40,7 @@ class LocalConsumerTest {
         setup.createTableIfNotExists("test");
         var ot = OpenTelemetry.noop();
 
-        broker = new EventMessageBroker(ot);
+        broker = new EventMessageBroker(ot,"test");
         PostEventConfig config = new ConfigData(
                 "test",
                 Set.of("test_topic"), // renamed from "test"
@@ -48,8 +48,7 @@ class LocalConsumerTest {
                 pg.getPort(),
                 "postgres",
                 "postgres",
-                "postgres",
-                null);
+                "postgres");
 
         localConsumer = new LocalConsumer(config, broker);
     }

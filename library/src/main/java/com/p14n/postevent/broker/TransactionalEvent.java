@@ -21,4 +21,9 @@ public record TransactionalEvent(Connection connection, Event event) implements 
     public String subject() {
         return event.subject();
     }
+
+    @Override
+    public String traceparent() {
+        return event.traceparent();
+    }
 }

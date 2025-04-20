@@ -177,8 +177,8 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         }
     }
 
-    private AtomicInteger signals = new AtomicInteger(0);
-    private AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicInteger signals = new AtomicInteger(0);
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     @Override
     public void onMessage(SystemEvent message) {

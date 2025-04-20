@@ -34,7 +34,7 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
     }
 
     public MessageBrokerGrpcClient(OpenTelemetry ot, ManagedChannel channel) {
-        super(ot);
+        super(ot,"grpc_client_broker");
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
     }

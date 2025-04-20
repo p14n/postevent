@@ -28,4 +28,5 @@ public interface PostEventConfig {
         return String.format("jdbc:postgresql://%s:%d/%s",
                 dbHost(), dbPort(), dbName());
     }
+    public int pollInterval();
 }

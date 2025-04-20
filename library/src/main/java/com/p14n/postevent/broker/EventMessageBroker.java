@@ -6,12 +6,12 @@ import io.opentelemetry.api.OpenTelemetry;
 
 public class EventMessageBroker extends DefaultMessageBroker<Event, Event> {
 
-    public EventMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot) {
-        super(asyncExecutor, ot);
+    public EventMessageBroker(AsyncExecutor asyncExecutor, OpenTelemetry ot, String scopeName) {
+        super(asyncExecutor, ot, scopeName);
     }
 
-    public EventMessageBroker(OpenTelemetry ot) {
-        super(ot);
+    public EventMessageBroker(OpenTelemetry ot, String scopeName) {
+        super(ot,scopeName);
     }
 
     @Override

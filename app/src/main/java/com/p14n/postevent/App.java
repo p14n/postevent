@@ -3,6 +3,7 @@ package com.p14n.postevent;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import javax.sql.DataSource;
 
@@ -12,6 +13,7 @@ import com.p14n.postevent.db.DatabaseSetup;
 
 import com.p14n.postevent.telemetry.OpenTelemetryFunctions;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry;
 
 public class App {
@@ -48,25 +50,31 @@ public class App {
         var gap = 1000;
         var direction = -1;
         var running = true;
+        Tracer tracer = ot.getTracer("postevent");
         while (running) {
             try {
                 for (var wt : write) {
-                    try {
+                    IntStream.range(0, 10).forEachOrdered(n -> {
                         var id = UUID.randomUUID().toString();
-                        Publisher.publish(
-                                Event.create(id,
-                                        affinity,
-                                        "test",
-                                        "string",
-                                        null,
-                                        id,
-                                        "test".getBytes(),
-                                        OpenTelemetryFunctions.serializeTraceContext(ot)),
-                                ds,
-                                wt);
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                    }
+                        OpenTelemetryFunctions.processWithTelemetry(tracer, "publish_new_event", () -> {
+                            try {
+                                Publisher.publish(
+                                        Event.create(id,
+                                                affinity,
+                                                "test",
+                                                "string",
+                                                null,
+                                                id,
+                                                "test".getBytes(),
+                                                OpenTelemetryFunctions.serializeTraceContext(ot)),
+                                        ds,
+                                        wt);
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                            }
+                            return null;
+                        });
+                    });
                 }
                 gap += direction * 10;
                 if (gap < 10) {
@@ -90,7 +98,8 @@ public class App {
                 5432,
                 "postgres",
                 "postgres",
-                "postgres");
+                "postgres",
+                10);
 
         // 1 write only - server and timed publish
         // 2 read/write - server and client
@@ -124,7 +133,7 @@ public class App {
                 }
 
             } else {
-                writeContinuously(ds, affinity, write,ot);
+                writeContinuously(ds, affinity, write, ot);
             }
 
         } finally {

@@ -6,4 +6,6 @@ public interface Traceable {
     public String topic();
 
     public String subject();
+
+    public String traceparent();
 }

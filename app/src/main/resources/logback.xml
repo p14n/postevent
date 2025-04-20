@@ -8,6 +8,6 @@
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
     </root>
-    <logger name="com.p14n.postevent" level="info" />
-    <logger name="io.debezium" level="off" />
+    <logger name="com.p14n.postevent" level="debug" />
+    <logger name="io.debezium" level="error" />
 </configuration>

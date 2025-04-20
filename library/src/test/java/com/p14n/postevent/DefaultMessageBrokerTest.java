@@ -43,6 +43,11 @@ class DefaultMessageBrokerTest {
         public String subject() {
             return "test-subject";
         }
+
+        @Override
+        public String traceparent() {
+            return null;
+        }
     }
 
     private volatile DefaultMessageBroker<TestMessage, TestMessage> broker;
@@ -64,7 +69,7 @@ class DefaultMessageBrokerTest {
     @BeforeEach
     void setUp() {
         var ot = OpenTelemetry.noop();
-        broker = new DefaultMessageBroker<TestMessage, TestMessage>(ot) {
+        broker = new DefaultMessageBroker<TestMessage, TestMessage>(ot,"test") {
             @Override
             public TestMessage convert(TestMessage m) {
                 return m;
