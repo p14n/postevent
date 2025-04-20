@@ -46,6 +46,11 @@ resource "aws_ecs_task_definition" "postevent" {
           containerPort = 50052
           hostPort      = 50052
           protocol      = "tcp"
+        },
+        {
+          containerPort = 8080
+          hostPort      = 8080
+          protocol      = "tcp"
         }
       ]
       logConfiguration = {
@@ -95,12 +100,12 @@ resource "aws_lb_target_group" "postevent" {
     enabled             = true
     healthy_threshold   = 2
     interval            = 30
-    matcher             = "0"
-    path                = "grpc.health.v1.Health/Check"
-    port                = "traffic-port"
+    matcher             = "200"
+    path                = "/health"
+    port                = "8080"
     timeout             = 5
     unhealthy_threshold = 3
-    protocol            = "gRPC"
+    protocol            = "HTTP"
   }
 }
 

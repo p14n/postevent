@@ -1,6 +1,11 @@
 package com.p14n.postevent;
 
+import com.sun.net.httpserver.HttpServer;
 import org.postgresql.Driver;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Set;
@@ -28,7 +33,7 @@ public class App {
         return new String[] {};
     }
 
-    public static void main(String[] args) throws SQLException {
+    public static void main(String[] args) throws Exception {
         System.out.println("Hello World!");
         DriverManager.registerDriver(new Driver());
         String affinity = UUID.randomUUID().toString().substring(0, 8);
@@ -92,7 +97,7 @@ public class App {
         }
     }
 
-    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts) {
+    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts) throws IOException {
 
         var cfg = new ConfigData(
                 affinity,
@@ -123,6 +128,14 @@ public class App {
                     e.printStackTrace();
                 }
             }
+            HttpServer.create(new InetSocketAddress(8080), 0)
+                    .createContext("/health", exchange -> {
+                String response = "OK";
+                exchange.sendResponseHeaders(200, response.length());
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(response.getBytes());
+                }
+            }).getServer().start();
 
             if (topichosts.length == 1 && topichosts[0].equals("localhost")) {
                 cc = runConsumerClient(new String[] {}, read, topichosts, ds, ot);
