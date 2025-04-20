@@ -2,23 +2,23 @@
 locals {
   container_environment = [
     [
-      { name = "APP_WRITE_TOPICS", value = "topic1" },
+      { name = "APP_WRITE_TOPICS", value = "topicone" },
       { name = "APP_DB_HOST", value = split(":", aws_db_instance.postevent[0].endpoint)[0] }
     ],
     [
-      { name = "APP_READ_TOPICS", value = "topic1" },
-      { name = "APP_WRITE_TOPICS", value = "topic2" },
+      { name = "APP_READ_TOPICS", value = "topicone" },
+      { name = "APP_WRITE_TOPICS", value = "topictwo" },
       { name = "APP_DB_HOST", value = split(":", aws_db_instance.postevent[1].endpoint)[0] },
       { name = "APP_TOPIC_HOST", value = aws_lb.postevent[0].dns_name }
     ],
     [
-      { name = "APP_READ_TOPICS", value = "topic2" },
-      { name = "APP_WRITE_TOPICS", value = "topic3" },
+      { name = "APP_READ_TOPICS", value = "topictwo" },
+      { name = "APP_WRITE_TOPICS", value = "topicthree" },
       { name = "APP_DB_HOST", value = split(":", aws_db_instance.postevent[2].endpoint)[0] },
       { name = "APP_TOPIC_HOST", value = aws_lb.postevent[1].dns_name }
     ],
     [
-      { name = "APP_READ_TOPICS", value = "topic3" },
+      { name = "APP_READ_TOPICS", value = "topicthree" },
       { name = "APP_DB_HOST", value = split(":", aws_db_instance.postevent[3].endpoint)[0] },
       { name = "APP_TOPIC_HOST", value = aws_lb.postevent[2].dns_name }
     ]
