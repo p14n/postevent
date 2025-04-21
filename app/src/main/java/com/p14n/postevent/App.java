@@ -1,7 +1,11 @@
 package com.p14n.postevent;
 
 import com.sun.net.httpserver.HttpServer;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
 import org.postgresql.Driver;
 
 import java.io.IOException;
@@ -14,6 +18,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+import javax.net.ssl.SSLException;
 import javax.sql.DataSource;
 
 import com.p14n.postevent.data.ConfigData;
@@ -99,7 +104,8 @@ public class App {
         }
     }
 
-    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts) throws IOException {
+    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts)
+            throws IOException {
 
         var cfg = new ConfigData(
                 affinity,
@@ -132,12 +138,12 @@ public class App {
             }
             HttpServer.create(new InetSocketAddress(8080), 0)
                     .createContext("/health", exchange -> {
-                String response = "OK";
-                exchange.sendResponseHeaders(200, response.length());
-                try (OutputStream os = exchange.getResponseBody()) {
-                    os.write(response.getBytes());
-                }
-            }).getServer().start();
+                        String response = "OK";
+                        exchange.sendResponseHeaders(200, response.length());
+                        try (OutputStream os = exchange.getResponseBody()) {
+                            os.write(response.getBytes());
+                        }
+                    }).getServer().start();
 
             if (topichosts.length == 1 && topichosts[0].equals("localhost")) {
                 cc = runConsumerClient(new String[] {}, read, topichosts, ds, ot);
@@ -160,15 +166,32 @@ public class App {
         }
     }
 
-    private static ConsumerClient runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
-            OpenTelemetry ot) {
-        ConsumerClient cc;
-        cc = new ConsumerClient(ot);
-        cc.start(Set.of(read), ds, ManagedChannelBuilder.forAddress(topichosts[0], 50052)
+    private static SslContext buildSslContext() {
+        try {
+            return GrpcSslContexts.forClient()
+                    .trustManager(InsecureTrustManagerFactory.INSTANCE) // Skip verification - only for internal/dev use
+                    .build();
+        } catch (SSLException e) {
+            throw new RuntimeException("Failed to create SSL context", e);
+        }
+    }
+
+    private static NettyChannelBuilder buildClientChannel(String host, int port) {
+        return NettyChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
-                .overrideAuthority(topichosts[0])
-                .build());
+                .useTransportSecurity() // Change from usePlaintext()
+                .overrideAuthority("postevent.internal") // Match certificate common name
+                .sslContext(buildSslContext());
+    }
+
+    private static ConsumerClient runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
+            OpenTelemetry ot) {
+
+        ConsumerClient cc;
+        cc = new ConsumerClient(ot);
+        cc.start(Set.of(read), ds, buildClientChannel(topichosts[0], 50052).build());
+
         for (var topic : read) {
             cc.subscribe(topic, (ev) -> {
                 for (var wt : write) {
