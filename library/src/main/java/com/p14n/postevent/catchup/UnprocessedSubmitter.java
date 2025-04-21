@@ -25,7 +25,7 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
 
     private void resubmit() {
         try (Connection c = ds.getConnection()) {
-            var events = unprocessedEventFinder.findUnprocessedEvents(c);
+            var events = unprocessedEventFinder.findUnprocessedEventsWithLimit(c,10);
             for (var e : events) {
                 targetBroker.publish(e.topic(), e);
             }

@@ -93,11 +93,12 @@ public class UnprocessedEventFinder {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<Event> events = processResultSet(rs);
-                logger.atInfo().log("Found " + events.size() + " unprocessed events");
+                logger.atInfo().log("Found {} unprocessed events", events.size());
                 return events;
             }
         }
     }
+
 
     /**
      * Processes a result set and converts each row to an Event object.

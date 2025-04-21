@@ -34,9 +34,10 @@ resource "aws_db_instance" "postevent" {
   allocated_storage = 20
   storage_encrypted = true
 
-  db_name  = "postgres"
-  username = "postgres"
-  password = var.db_password
+  db_name             = "postgres"
+  username            = "postgres"
+  password            = var.db_password
+  publicly_accessible = true
 
   parameter_group_name = aws_db_parameter_group.postevent.name
   skip_final_snapshot  = true

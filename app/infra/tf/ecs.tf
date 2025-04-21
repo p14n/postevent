@@ -134,7 +134,7 @@ resource "aws_ecs_service" "postevent" {
   name            = var.service_names[count.index]
   cluster         = aws_ecs_cluster.postevent.id
   task_definition = aws_ecs_task_definition.postevent[count.index].arn
-  desired_count   = 1
+  desired_count   = 0
   launch_type     = "FARGATE"
 
   network_configuration {
