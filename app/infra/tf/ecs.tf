@@ -19,6 +19,7 @@ locals {
     ],
     [
       { name = "APP_READ_TOPICS", value = "topicthree" },
+      { name = "APP_WRITE_TOPICS", value = "topicfour" },
       { name = "APP_DB_HOST", value = split(":", aws_db_instance.postevent[3].endpoint)[0] },
       { name = "APP_TOPIC_HOST", value = aws_lb.postevent[2].dns_name }
     ]
