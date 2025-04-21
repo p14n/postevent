@@ -108,12 +108,13 @@ resource "aws_lb_listener" "postevent" {
 
 # Update target group
 resource "aws_lb_target_group" "postevent" {
-  count       = 4
-  name        = "postevent-${var.service_names[count.index]}"
-  port        = 50052
-  protocol    = "HTTP"
-  vpc_id      = var.vpc_id
-  target_type = "ip"
+  count            = 4
+  name             = "postevent-${var.service_names[count.index]}"
+  port             = 50052
+  protocol         = "HTTP"
+  protocol_version = "HTTP2"
+  vpc_id           = var.vpc_id
+  target_type      = "ip"
 
   health_check {
     enabled             = true
