@@ -1,6 +1,7 @@
 package com.p14n.postevent;
 
 import com.sun.net.httpserver.HttpServer;
+import io.grpc.ManagedChannelBuilder;
 import org.postgresql.Driver;
 
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import javax.sql.DataSource;
@@ -162,7 +164,11 @@ public class App {
             OpenTelemetry ot) {
         ConsumerClient cc;
         cc = new ConsumerClient(ot);
-        cc.start(Set.of(read), ds, topichosts[0], 50052);
+        cc.start(Set.of(read), ds, ManagedChannelBuilder.forAddress(topichosts[0], 50052)
+                .keepAliveTime(1, TimeUnit.HOURS)
+                .keepAliveTimeout(30, TimeUnit.SECONDS)
+                .overrideAuthority(topichosts[0])
+                .build());
         for (var topic : read) {
             cc.subscribe(topic, (ev) -> {
                 for (var wt : write) {

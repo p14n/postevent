@@ -87,8 +87,26 @@ resource "aws_lb" "postevent" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.subnet_ids
+
+  enable_http2 = true
 }
 
+# Create ALB listener
+resource "aws_lb_listener" "postevent" {
+  count             = 4
+  load_balancer_arn = aws_lb.postevent[count.index].arn
+  port              = "50052"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.postevent.arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.postevent[count.index].arn
+  }
+}
+
+# Update target group
 resource "aws_lb_target_group" "postevent" {
   count       = 4
   name        = "postevent-${var.service_names[count.index]}"
@@ -99,26 +117,13 @@ resource "aws_lb_target_group" "postevent" {
 
   health_check {
     enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
     path                = "/health"
-    port                = "8080"
-    timeout             = 5
-    unhealthy_threshold = 3
+    port                = 8080
     protocol            = "HTTP"
-  }
-}
-
-resource "aws_lb_listener" "postevent" {
-  count             = 4
-  load_balancer_arn = aws_lb.postevent[count.index].arn
-  port              = "50052"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.postevent[count.index].arn
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
   }
 }
 
