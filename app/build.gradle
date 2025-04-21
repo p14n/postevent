@@ -1,5 +1,6 @@
 plugins {
     id 'application'
+    id("com.gradleup.shadow") version "8.3.6"
 }
 
 compileJava {
@@ -12,6 +13,7 @@ version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+    gradlePluginPortal()
 }
 
 dependencies {
@@ -37,7 +39,7 @@ jar {
     }
 }
 
-task uberJar(type: Jar) {
+/*task uberJar(type: Jar) {
     manifest {
         attributes 'Main-Class': 'com.p14n.postevent.App'
     }
@@ -47,8 +49,15 @@ task uberJar(type: Jar) {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
     with jar
+}*/
+//tasks {
+//}
+shadowJar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveBaseName.set("${project.name}-uber")
+    mergeServiceFiles()
+    mainClassName = 'com.p14n.postevent.App'
 }
-
 
 task runHelloWorld(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath

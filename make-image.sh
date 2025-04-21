@@ -1,4 +1,4 @@
-./gradlew uber
+./gradlew shadowJar
 export TF_VAR_image_tag=$(git rev-parse --short HEAD)
 cp  app/build/libs/app-uber-*.jar app/infra/image/app-uber.jar
 docker build --platform linux/amd64 -t postevent/app:$TF_VAR_image_tag app/infra/image/
