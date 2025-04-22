@@ -138,6 +138,7 @@ public class App {
             }
             HttpServer.create(new InetSocketAddress(8080), 0)
                     .createContext("/health", exchange -> {
+                        System.out.println("HEALTH request received");
                         String response = "OK";
                         exchange.sendResponseHeaders(200, response.length());
                         try (OutputStream os = exchange.getResponseBody()) {
@@ -189,7 +190,7 @@ public class App {
             OpenTelemetry ot) {
 
         ConsumerClient cc;
-        cc = new ConsumerClient(ot);
+        cc = new ConsumerClient(ot,10);
         cc.start(Set.of(read), ds, buildClientChannel(topichosts[0], 50052).build());
 
         for (var topic : read) {

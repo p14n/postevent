@@ -12,11 +12,29 @@ public class DefaultExecutor implements AsyncExecutor {
         private final ExecutorService es;
 
         public DefaultExecutor(int scheduledSize) {
-                this.se = Executors.newScheduledThreadPool(scheduledSize,
-                                new ThreadFactoryBuilder().setNameFormat("post-event-scheduled-%d").build());
-                this.es = Executors.newThreadPerTaskExecutor(
+                this.se = createScheduledExecutorService(scheduledSize);
+                this.es = createVirtualExecutorService();
+        }
+
+        public DefaultExecutor(int scheduledSize, int fixedSize) {
+                this.se = createScheduledExecutorService(scheduledSize);
+                this.es = createFixedExecutorService(fixedSize);
+        }
+
+        protected ExecutorService createFixedExecutorService(int size) {
+                return Executors.newFixedThreadPool(size,
+                                new ThreadFactoryBuilder().setNameFormat("post-event-fixed-%d").build());
+        }
+
+        protected ExecutorService createVirtualExecutorService() {
+                return Executors.newThreadPerTaskExecutor(
                                 new ThreadFactoryBuilder().setThreadFactory(Thread.ofVirtual().factory())
                                                 .setNameFormat("post-event-virtual-%d").build());
+        }
+
+        protected ScheduledExecutorService createScheduledExecutorService(int size) {
+                return Executors.newScheduledThreadPool(size,
+                                new ThreadFactoryBuilder().setNameFormat("post-event-scheduled-%d").build());
         }
 
         @Override

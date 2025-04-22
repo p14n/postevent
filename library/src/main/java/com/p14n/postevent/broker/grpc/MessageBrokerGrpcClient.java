@@ -1,5 +1,6 @@
 package com.p14n.postevent.broker.grpc;
 
+import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
@@ -25,16 +26,16 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
 
     ManagedChannel channel;
 
-    public MessageBrokerGrpcClient(OpenTelemetry ot, String host, int port) {
-        this(ot, ManagedChannelBuilder.forAddress(host, port)
+    public MessageBrokerGrpcClient(AsyncExecutor asyncExecutor, OpenTelemetry ot, String host, int port) {
+        this(asyncExecutor, ot, ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
                 .usePlaintext()
                 .build());
     }
 
-    public MessageBrokerGrpcClient(OpenTelemetry ot, ManagedChannel channel) {
-        super(ot,"grpc_client_broker");
+    public MessageBrokerGrpcClient(AsyncExecutor asyncExecutor, OpenTelemetry ot, ManagedChannel channel) {
+        super(asyncExecutor, ot, "grpc_client_broker");
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
     }

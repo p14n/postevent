@@ -15,7 +15,8 @@ import java.sql.Statement;
 import java.util.Set;
 
 public class DatabaseSetup {
-
+    // SELECT 'select pg_drop_replication_slot(''' || slot_name ||''');' FROM
+    // pg_replication_slots where active=false and slot_name like 'postevent%';
     private static final Logger logger = LoggerFactory.getLogger(DatabaseSetup.class);
 
     private final String jdbcUrl;

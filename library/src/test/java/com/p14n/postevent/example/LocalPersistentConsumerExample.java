@@ -26,7 +26,7 @@ public class LocalPersistentConsumerExample {
                         pg.getPort(),
                         "postgres",
                         "postgres",
-                        "postgres"), ot);) {
+                        "postgres"), ot,10);) {
 
             var ds = pg.getPostgresDatabase();
 

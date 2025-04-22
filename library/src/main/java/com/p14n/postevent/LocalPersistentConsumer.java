@@ -28,17 +28,19 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     private TransactionalBroker tb;
     private List<AutoCloseable> closeables;
     private OpenTelemetry ot;
+    private final int batchSize;
 
     public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, AsyncExecutor asyncExecutor,
-            OpenTelemetry ot) {
+            OpenTelemetry ot, int batchSize) {
         this.ds = ds;
         this.cfg = cfg;
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
+        this.batchSize = batchSize;
     }
 
-    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, OpenTelemetry ot) {
-        this(ds, cfg, new DefaultExecutor(2), ot);
+    public LocalPersistentConsumer(DataSource ds, PostEventConfig cfg, OpenTelemetry ot, int batchSize) {
+        this(ds, cfg, new DefaultExecutor(2, batchSize), ot, batchSize);
     }
 
     public void start() throws IOException, InterruptedException {
@@ -56,7 +58,7 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             var lc = new LocalConsumer<>(cfg, pb);
 
             seb.subscribe(new CatchupService(ds, new CatchupServer(ds), seb));
-            var unprocessedSubmitter = new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb);
+            var unprocessedSubmitter = new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb, batchSize);
             seb.subscribe(unprocessedSubmitter);
 
             asyncExecutor.scheduleAtFixedRate(() -> {

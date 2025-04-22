@@ -32,7 +32,7 @@ public class RemoteConsumerExample {
 
         var ot = OpenTelemetry.noop();
 
-        try (ConsumerClient client = new ConsumerClient(ot)) {
+        try (ConsumerClient client = new ConsumerClient(ot,10)) {
             client.start(Set.of(topic), ds, "localhost", port);
             client.subscribe(topic, message -> {
                 System.err.println("********* Message received *************");

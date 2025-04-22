@@ -147,8 +147,10 @@ class PostgresDebeziumConnectorTest {
         while (active) {
             try (Statement stmt = conn.createStatement()) {
                 ResultSet rs = stmt.executeQuery("SELECT active from pg_replication_slots");
-                rs.next();
-                active = rs.getBoolean(1);
+                active = rs.next();
+                if(active){
+                    active = rs.getBoolean(1);
+                }
                 System.out.println(active);
             }
             if (active)

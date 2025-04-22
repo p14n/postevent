@@ -15,7 +15,7 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
     private final DataSource ds;
 
     public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
-        super(asyncExecutor, ot,"transactional_broker");
+        super(asyncExecutor, ot, "transactional_broker");
         this.ds = ds;
     }
 
@@ -36,11 +36,11 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
         for (MessageSubscriber<TransactionalEvent> subscriber : topicSubscribers.get(topic)) {
             try (Connection c = ds.getConnection()) {
 
-                processWithTelemetry(openTelemetry,tracer, message, "ordered_process", () -> {
+                processWithTelemetry(openTelemetry, tracer, message, "ordered_process", () -> {
 
                     var op = new OrderedProcessor((connection, event) -> {
 
-                        return processWithTelemetry(openTelemetry,tracer, message, "message_transaction", () -> {
+                        return processWithTelemetry(openTelemetry, tracer, message, "message_transaction", () -> {
                             try {
                                 subscriber.onMessage(new TransactionalEvent(connection, event));
                                 metrics.recordReceived(topic);
