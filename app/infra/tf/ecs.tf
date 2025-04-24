@@ -97,7 +97,7 @@ resource "aws_lb_listener" "postevent" {
   load_balancer_arn = aws_lb.postevent[count.index].arn
   port              = "50052"
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
   certificate_arn   = aws_acm_certificate.postevent.arn
 
   default_action {
@@ -112,19 +112,19 @@ resource "aws_lb_target_group" "postevent" {
   name             = "postevent-${var.service_names[count.index]}"
   port             = 50052
   protocol         = "HTTP"
-  protocol_version = "HTTP2"
+  protocol_version = "GRPC"
   vpc_id           = var.vpc_id
   target_type      = "ip"
 
   health_check {
     enabled             = true
     path                = "/health"
-    port                = 8080
     protocol            = "HTTP"
     healthy_threshold   = 2
     unhealthy_threshold = 2
     timeout             = 5
     interval            = 30
+    matcher             = "12"
   }
 }
 
