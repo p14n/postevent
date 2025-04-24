@@ -76,7 +76,7 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
                 client.subscribe(topic, pb);
             }
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
-            seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb, batchSize));
+            seb.subscribe(new UnprocessedSubmitter(seb,ds, new UnprocessedEventFinder(), tb, batchSize));
 
             asyncExecutor.scheduleAtFixedRate(
                     () -> seb.publish(SystemEvent.UnprocessedCheckRequired),
