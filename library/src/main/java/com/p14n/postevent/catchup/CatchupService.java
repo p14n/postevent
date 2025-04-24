@@ -23,7 +23,7 @@ import javax.sql.DataSource;
 /**
  * Service to handle catching up on missed events for topics.
  */
-public class CatchupService implements MessageSubscriber<SystemEvent> {
+public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATimeBehaviour {
     private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
     private static final int DEFAULT_BATCH_SIZE = 20;
 
@@ -180,27 +180,10 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         }
     }
 
-    private final AtomicInteger signals = new AtomicInteger(0);
-    private final AtomicBoolean running = new AtomicBoolean(false);
-
     @Override
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
-            signals.incrementAndGet();
-            if (running.get()) {
-                return;
-            }
-            synchronized (running) {
-                if (!running.get()) {
-                    running.set(true);
-                    signals.set(0);
-                    catchup(message.topic);
-                    running.set(false);
-                    if (signals.get() > 0) {
-                        onMessage(message);
-                    }
-                }
-            }
+            oneAtATime(() -> catchup(message.topic), () -> onMessage(message));
         }
     }
 

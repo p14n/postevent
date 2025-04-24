@@ -10,8 +10,10 @@ import com.p14n.postevent.data.UnprocessedEventFinder;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
+public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent>, OneAtATimeBehaviour {
 
     private final MessageBroker<Event, ?> targetBroker;
     private final DataSource ds;
@@ -46,8 +48,7 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
     @Override
     public void onMessage(SystemEvent message) {
         if (message == SystemEvent.UnprocessedCheckRequired) {
-            resubmit();
-            ;
+            oneAtATime(() -> resubmit(), () -> onMessage(message));
         }
     }
 
