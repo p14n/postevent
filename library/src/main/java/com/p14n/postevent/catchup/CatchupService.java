@@ -86,7 +86,11 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
                     processedCount, topicName, currentHwm, newHwm));
 
             conn.commit();
-            systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
+            if (events.size() == batchSize) {
+                systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
+            } else {
+                systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
+            }
             return processedCount;
         } catch (SQLException e) {
             LOGGER.error("Failed to catch up", e);

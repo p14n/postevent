@@ -60,7 +60,7 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
             @Override
             public void onError(Throwable t) {
                 logger.atError().setCause(t).log("Error in event stream");
-                subscribed.remove(topic);
+                // subscribed.remove(topic);
             }
 
             @Override
