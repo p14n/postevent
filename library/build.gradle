@@ -90,7 +90,11 @@ test {
     testLogging.showStandardStreams = true
 }
 task fastTest( type: Test ) {
-    exclude '**/dst/**'
+    useJUnitPlatform {
+        includeEngines 'junit-jupiter'
+        exclude '**/dst/**'
+
+    }
 }
 
 jar {
