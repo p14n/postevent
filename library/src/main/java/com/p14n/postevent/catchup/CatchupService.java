@@ -86,7 +86,7 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
                     processedCount, topicName, currentHwm, newHwm));
 
             conn.commit();
-            if (events.size() == batchSize) {
+            if (events.size() == batchSize || events.size() == gapEnd - currentHwm) {
                 systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
             } else {
                 systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);

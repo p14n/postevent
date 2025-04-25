@@ -62,6 +62,11 @@ class DatabaseSetupTest {
     }
 
     @Test
+    void shouldClearOldSlots() throws SQLException {
+        databaseSetup.clearOldSlots();
+    }
+
+    @Test
     void shouldVerifyTableColumns() throws SQLException {
         String topic = "test_topic";
         databaseSetup.createSchemaIfNotExists();

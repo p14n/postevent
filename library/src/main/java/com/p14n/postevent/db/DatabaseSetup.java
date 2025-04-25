@@ -12,6 +12,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Set;
 
 public class DatabaseSetup {
@@ -38,11 +39,38 @@ public class DatabaseSetup {
         createMessagesTableIfNotExists();
         createContiguousHwmTableIfNotExists();
         topics.stream().forEach(this::createTableIfNotExists);
+        clearOldSlots();
         return this;
     }
 
     public DatabaseSetup setupAll(String topic) {
         return setupAll(Set.of(topic));
+    }
+
+    public DatabaseSetup clearOldSlots() {
+        try (Connection conn = getConnection();
+                Statement stmt = conn.createStatement()) {
+            String sql = "select slot_name FROM pg_replication_slots where active=false and slot_name like 'postevent%'";
+            var rs = stmt.executeQuery(sql);
+            logger.atInfo().log("Clearing old slots");
+            var slotNames = new ArrayList<String>();
+            while (rs.next()) {
+                slotNames.add(rs.getString(1));
+            }
+            if (slotNames.isEmpty()) {
+                logger.atInfo().log("No old slots to clear");
+                return this;
+            }
+            for (var slotName : slotNames) {
+                try (var call = conn.prepareCall("call pg_drop_replication_slot(?)")) {
+                    call.setString(1, slotName);
+                    call.execute();
+                }
+            }
+        } catch (SQLException e) {
+            logger.atError().setCause(e).log("Error clearing old slots");
+        }
+        return this;
     }
 
     public DatabaseSetup createSchemaIfNotExists() {
@@ -118,7 +146,18 @@ public class DatabaseSetup {
                     )""";
 
             stmt.execute(sql);
-            logger.atInfo().log("Messages table creation completed successfully");
+
+            // Existing index for hasUnprocessedPriorEvents
+            stmt.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_messages_subject_topic_idn_status
+                    ON postevent.messages (subject, topic, idn, status)""");
+
+            // New index for findUnprocessedEvents query
+            stmt.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_messages_status_time
+                    ON postevent.messages (status, time)""");
+
+            logger.atInfo().log("Messages table and indexes creation completed successfully");
 
         } catch (SQLException e) {
             logger.atError().setCause(e).log("Error creating messages table");
