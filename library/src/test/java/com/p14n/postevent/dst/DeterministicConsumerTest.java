@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
-@Disabled
 class DeterministicConsumerTest {
     private static final Logger logger = LoggerFactory.getLogger(DeterministicConsumerTest.class);
     private static final int PORT = 50052;
