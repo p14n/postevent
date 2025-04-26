@@ -1,5 +1,7 @@
 package com.p14n.postevent.processor;
 
+import com.p14n.postevent.broker.SystemEvent;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.data.Event;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -19,6 +21,7 @@ public class OrderedProcessor {
     private static final Logger logger = LoggerFactory.getLogger(OrderedProcessor.class);
 
     private final BiFunction<Connection, Event, Boolean> processorFunction;
+    private final SystemEventBroker systemEventBroker;;
 
     /**
      * Creates a new OrderedProcessor with the specified processing function.
@@ -27,7 +30,9 @@ public class OrderedProcessor {
      *                          connection
      *                          and returns true if processing was successful
      */
-    public OrderedProcessor(BiFunction<Connection, Event, Boolean> processorFunction) {
+    public OrderedProcessor(SystemEventBroker systemEventBroker,
+            BiFunction<Connection, Event, Boolean> processorFunction) {
+        this.systemEventBroker = systemEventBroker;
         this.processorFunction = processorFunction;
     }
 
@@ -60,6 +65,7 @@ public class OrderedProcessor {
             if (!previousEventExists(connection, event)) {
                 logger.atDebug().log(() -> "Skipping event " + event.id() + " (idn: " + event.idn() + ") topic "
                         + event.topic() + " as the previous event has not reached the client");
+                systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(event.topic()));
                 return false;
             }
 

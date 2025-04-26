@@ -66,8 +66,8 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
         }
 
         try {
-            tb = new TransactionalBroker(ds, asyncExecutor, ot);
             seb = new SystemEventBroker(asyncExecutor, ot);
+            tb = new TransactionalBroker(ds, asyncExecutor, ot, seb);
             var pb = new PersistentBroker<>(tb, ds, seb);
             var client = new MessageBrokerGrpcClient(asyncExecutor, ot, channel); // needs fixed threads
             var catchupClient = new CatchupGrpcClient(channel);

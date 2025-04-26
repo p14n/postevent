@@ -65,8 +65,6 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
                 LOGGER.info("No new gap events to process for topic: " + topicName);
                 if (updateHwmToLastContiguous(topicName, currentHwm, conn)) {
                     systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
-                } else {
-                    systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
                 }
                 return 0;
             }

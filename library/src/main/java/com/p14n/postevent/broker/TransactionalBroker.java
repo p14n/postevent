@@ -13,15 +13,18 @@ import java.sql.Connection;
 
 public class TransactionalBroker extends DefaultMessageBroker<Event, TransactionalEvent> {
     private final DataSource ds;
+    private final SystemEventBroker systemEventBroker;
 
-    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
+    public TransactionalBroker(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot, SystemEventBroker systemEventBroker) {
         super(asyncExecutor, ot, "transactional_broker");
         this.ds = ds;
+        this.systemEventBroker = systemEventBroker;
     }
 
-    public TransactionalBroker(DataSource ds, OpenTelemetry ot) {
+    public TransactionalBroker(DataSource ds, OpenTelemetry ot, SystemEventBroker systemEventBroker) {
         super(ot, "transactional_broker");
         this.ds = ds;
+        this.systemEventBroker = systemEventBroker;
     }
 
     @Override
@@ -38,7 +41,7 @@ public class TransactionalBroker extends DefaultMessageBroker<Event, Transaction
 
                 processWithTelemetry(openTelemetry, tracer, message, "ordered_process", () -> {
 
-                    var op = new OrderedProcessor((connection, event) -> {
+                    var op = new OrderedProcessor(systemEventBroker,(connection, event) -> {
 
                         return processWithTelemetry(openTelemetry, tracer, message, "message_transaction", () -> {
                             try {

@@ -52,8 +52,8 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
         }
 
         try {
-            tb = new TransactionalBroker(ds, asyncExecutor, ot);
             var seb = new SystemEventBroker(asyncExecutor, ot);
+            tb = new TransactionalBroker(ds, asyncExecutor, ot, seb);
             var pb = new PersistentBroker<>(tb, ds, seb);
             var lc = new LocalConsumer<>(cfg, pb);
 

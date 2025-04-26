@@ -1,5 +1,6 @@
 package com.p14n.postevent.processor;
 
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.data.Event;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ public class OrderedProcessorTest {
     private BiFunction<Connection, Event, Boolean> mockProcessor;
     private OrderedProcessor orderedProcessor;
     private Event testEvent;
+    private SystemEventBroker systemEventBroker;
 
     @BeforeEach
     public void setUp() throws SQLException {
@@ -36,6 +38,7 @@ public class OrderedProcessorTest {
         mockUpdateStmt = mock(PreparedStatement.class);
         mockResultSet = mock(ResultSet.class);
         mockHwmResultSet = mock(ResultSet.class);
+        systemEventBroker = mock(SystemEventBroker.class);
         // Setup connection behavior
         when(mockConnection.prepareStatement(anyString())).thenAnswer(invocation -> {
             String sql = invocation.getArgument(0);
@@ -59,7 +62,7 @@ public class OrderedProcessorTest {
         mockProcessor = mock(BiFunction.class);
 
         // Create OrderedProcessor with mock processor
-        orderedProcessor = new OrderedProcessor(mockProcessor);
+        orderedProcessor = new OrderedProcessor(systemEventBroker,mockProcessor);
     }
 
     @Test
