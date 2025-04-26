@@ -65,4 +65,27 @@ public class CatchupServer implements CatchupServerInterface {
             throw new RuntimeException("Failed to fetch events", e);
         }
     }
+
+    @Override
+    public long getLatestMessageId(String topic) {
+        if (topic == null || topic.trim().isEmpty()) {
+            throw new IllegalArgumentException("Topic name cannot be null or empty");
+        }
+
+        String sql = String.format("SELECT MAX(idn) FROM postevent.%s", topic);
+
+        try (Connection conn = dataSource.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+            return 0;
+
+        } catch (SQLException e) {
+            logger.atError().setCause(e).log("Error fetching latest message ID");
+            throw new RuntimeException("Failed to fetch latest message ID", e);
+        }
+    }
 }

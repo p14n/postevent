@@ -86,6 +86,26 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
     }
 
     @Override
+    public long getLatestMessageId(String topic) {
+        logger.atInfo()
+                .addArgument(topic)
+                .log("Fetching latest message ID for topic {}");
+
+        TopicRequest request = TopicRequest.newBuilder()
+                .setTopic(topic)
+                .build();
+
+        LatestMessageIdResponse response;
+        try {
+            response = blockingStub.getLatestMessageId(request);
+            return response.getMessageId();
+        } catch (StatusRuntimeException e) {
+            logger.atWarn().setCause(e).log("RPC failed: {}", e.getStatus());
+            throw new RuntimeException("Failed to fetch latest message ID via gRPC", e);
+        }
+    }
+
+    @Override
     public void close() {
         try {
             channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);

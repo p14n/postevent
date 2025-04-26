@@ -58,12 +58,15 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             var lc = new LocalConsumer<>(cfg, pb);
 
             seb.subscribe(new CatchupService(ds, new CatchupServer(ds), seb));
-            var unprocessedSubmitter = new UnprocessedSubmitter(seb,ds, new UnprocessedEventFinder(), tb, batchSize);
+            var unprocessedSubmitter = new UnprocessedSubmitter(seb, ds, new UnprocessedEventFinder(), tb, batchSize);
             seb.subscribe(unprocessedSubmitter);
 
             asyncExecutor.scheduleAtFixedRate(() -> {
-                logger.atDebug().log("Triggering unprocessed check");
+                logger.atDebug().log("Triggering unprocessed check and fetch latest");
                 seb.publish(SystemEvent.UnprocessedCheckRequired);
+                for (String topic : cfg.topics()) {
+                    seb.publish(SystemEvent.FetchLatest.withTopic(topic));
+                }
             }, 30, 30, TimeUnit.SECONDS);
 
             lc.start();

@@ -5,7 +5,8 @@ import com.p14n.postevent.data.Traceable;
 public enum SystemEvent implements Traceable {
 
     CatchupRequired,
-    UnprocessedCheckRequired;
+    UnprocessedCheckRequired,
+    FetchLatest; // New event type
 
     public String topic;
 
