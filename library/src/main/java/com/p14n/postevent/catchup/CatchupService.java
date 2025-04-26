@@ -211,7 +211,7 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
             }
 
             // Fetch just the latest message
-            List<Event> events = catchupServer.fetchEvents(latestMessageId, latestMessageId, 1, topicName);
+            List<Event> events = catchupServer.fetchEvents(latestMessageId - 1, latestMessageId, 1, topicName);
 
             if (events.isEmpty()) {
                 LOGGER.info("No events found in range for topic: " + topicName);
