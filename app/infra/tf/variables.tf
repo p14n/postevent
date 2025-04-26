@@ -1,14 +1,17 @@
 
 variable "vpc_id" {
-  type = string
+  type        = string
+  description = "VPC ID for the private subnets"
 }
 
 variable "vpc_cidr" {
-  type = string
+  type        = string
+  description = "VPC CIDR block"
 }
 
 variable "subnet_ids" {
-  type = list(string)
+  type        = list(string)
+  description = "List of subnet IDs for the private subnets"
 }
 
 variable "route_table_id" {
@@ -17,7 +20,8 @@ variable "route_table_id" {
 }
 
 variable "db_password" {
-  type = string
+  type    = string
+  default = "postgres"
 }
 
 variable "image_tag" {
@@ -26,5 +30,5 @@ variable "image_tag" {
 
 variable "service_names" {
   type    = list(string)
-  default = ["service1", "service2", "service3", "service4"]
+  default = ["writer", "reader1", "reader2", "reader3"]
 }
