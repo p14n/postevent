@@ -59,6 +59,7 @@ public class DebeziumServer {
                 props.setProperty("publication.autocreate.mode", "filtered");
                 props.setProperty("snapshot.mode", "no_data");
                 props.setProperty("slot.name", "postevent_" + affinity);
+                props.setProperty("slot.drop.on.stop", "true");
                 props.setProperty("offset.storage.jdbc.offset.table.ddl",
                                 "CREATE TABLE IF NOT EXISTS %s (affinityid VARCHAR(255) NOT NULL, id VARCHAR(36) NOT NULL, "
                                                 +

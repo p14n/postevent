@@ -1,6 +1,6 @@
 package com.p14n.postevent.example;
 
-import com.p14n.postevent.ConsumerClient;
+import com.p14n.postevent.RemotePersistentConsumer;
 import com.p14n.postevent.ConsumerServer;
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.TestUtil;
@@ -32,7 +32,7 @@ public class RemoteConsumerExample {
 
         var ot = OpenTelemetry.noop();
 
-        try (ConsumerClient client = new ConsumerClient(ot)) {
+        try (RemotePersistentConsumer client = new RemotePersistentConsumer(ot,10)) {
             client.start(Set.of(topic), ds, "localhost", port);
             client.subscribe(topic, message -> {
                 System.err.println("********* Message received *************");

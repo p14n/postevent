@@ -1,5 +1,6 @@
 package com.p14n.postevent.broker.grpc;
 
+import com.p14n.postevent.broker.DefaultExecutor;
 import com.p14n.postevent.broker.DefaultMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.data.Event;
@@ -56,7 +57,7 @@ public class MessageBrokerGrpcIntegrationTest {
                 .start();
 
         // Create the client
-        client = new MessageBrokerGrpcClient(ot, HOST, PORT);
+        client = new MessageBrokerGrpcClient(new DefaultExecutor(2),ot, HOST, PORT);
     }
 
     @AfterEach

@@ -23,7 +23,7 @@ import javax.sql.DataSource;
 /**
  * Service to handle catching up on missed events for topics.
  */
-public class CatchupService implements MessageSubscriber<SystemEvent> {
+public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATimeBehaviour {
     private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
     private static final int DEFAULT_BATCH_SIZE = 20;
 
@@ -31,6 +31,8 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
     private final DataSource datasource;
     private int batchSize = DEFAULT_BATCH_SIZE;
     private final SystemEventBroker systemEventBroker;
+    final AtomicInteger signals = new AtomicInteger(0);
+    final AtomicBoolean running = new AtomicBoolean(false);
 
     public CatchupService(DataSource ds, CatchupServerInterface catchupServer, SystemEventBroker systemEventBroker) {
         this.datasource = ds;
@@ -86,7 +88,11 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
                     processedCount, topicName, currentHwm, newHwm));
 
             conn.commit();
-            systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
+            if (events.size() == batchSize || events.size() == gapEnd - currentHwm) {
+                systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
+            } else {
+                systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
+            }
             return processedCount;
         } catch (SQLException e) {
             LOGGER.error("Failed to catch up", e);
@@ -176,27 +182,10 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
         }
     }
 
-    private final AtomicInteger signals = new AtomicInteger(0);
-    private final AtomicBoolean running = new AtomicBoolean(false);
-
     @Override
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
-            signals.incrementAndGet();
-            if (running.get()) {
-                return;
-            }
-            synchronized (running) {
-                if (!running.get()) {
-                    running.set(true);
-                    signals.set(0);
-                    catchup(message.topic);
-                    running.set(false);
-                    if (signals.get() > 0) {
-                        onMessage(message);
-                    }
-                }
-            }
+            oneAtATime(() -> catchup(message.topic), () -> onMessage(message));
         }
     }
 
@@ -290,6 +279,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent> {
                 return shouldUpdate;
             }
         }
+    }
+
+    @Override
+    public AtomicInteger getSignals() {
+        return signals;
+    }
+
+    @Override
+    public AtomicBoolean getRunning() {
+        return running;
     }
 
 }

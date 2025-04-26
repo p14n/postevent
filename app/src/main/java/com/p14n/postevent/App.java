@@ -1,10 +1,21 @@
 package com.p14n.postevent;
 
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
+import org.postgresql.Driver;
+
+import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
+import javax.net.ssl.SSLException;
 import javax.sql.DataSource;
 
 import com.p14n.postevent.data.ConfigData;
@@ -26,9 +37,10 @@ public class App {
         return new String[] {};
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         System.out.println("Hello World!");
-        String affinity = "local";
+        DriverManager.registerDriver(new Driver());
+        String affinity = UUID.randomUUID().toString().substring(0, 8);
 
         var write = envVals("APP_WRITE_TOPICS");
         var read = envVals("APP_READ_TOPICS");
@@ -46,50 +58,48 @@ public class App {
         }
     }
 
-    private static void writeContinuously(DataSource ds, String affinity, String[] write, OpenTelemetry ot) {
+    private static void writeContinuously(DataSource ds, String affinity, String[] write, OpenTelemetry ot)
+            throws InterruptedException {
         var gap = 1000;
         var direction = -1;
         var running = true;
         Tracer tracer = ot.getTracer("postevent");
         while (running) {
-            try {
-                for (var wt : write) {
-                    IntStream.range(0, 10).forEachOrdered(n -> {
-                        var id = UUID.randomUUID().toString();
-                        OpenTelemetryFunctions.processWithTelemetry(tracer, "publish_new_event", () -> {
-                            try {
-                                Publisher.publish(
-                                        Event.create(id,
-                                                affinity,
-                                                "test",
-                                                "string",
-                                                null,
-                                                id,
-                                                "test".getBytes(),
-                                                OpenTelemetryFunctions.serializeTraceContext(ot)),
-                                        ds,
-                                        wt);
-                            } catch (SQLException e) {
-                                e.printStackTrace();
-                            }
-                            return null;
-                        });
+            for (var wt : write) {
+                IntStream.range(0, 10).forEachOrdered(n -> {
+                    var id = UUID.randomUUID().toString();
+                    OpenTelemetryFunctions.processWithTelemetry(tracer, "publish_new_event", () -> {
+                        try {
+                            Publisher.publish(
+                                    Event.create(id,
+                                            affinity,
+                                            "test",
+                                            "string",
+                                            null,
+                                            id,
+                                            "test".getBytes(),
+                                            OpenTelemetryFunctions.serializeTraceContext(ot)),
+                                    ds,
+                                    wt);
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                        return null;
                     });
-                }
-                gap += direction * 10;
-                if (gap < 10) {
-                    direction = 1;
-                } else if (gap > 1000) {
-                    direction = -1;
-                }
-                Thread.sleep(gap);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                });
             }
+            gap += direction * 10;
+            if (gap < 10) {
+                direction = 1;
+            } else if (gap > 1000) {
+                direction = -1;
+            }
+            Thread.sleep(gap);
         }
     }
 
-    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts) {
+    private static void run(String affinity, String[] write, String[] read, String dbhost, String[] topichosts)
+            throws IOException, InterruptedException {
 
         var cfg = new ConfigData(
                 affinity,
@@ -106,19 +116,15 @@ public class App {
         // 3 read/writw - server and client
         // 4 read only - client only
         ConsumerServer cs = null;
-        ConsumerClient cc = null;
+        RemotePersistentConsumer cc = null;
 
         var ot = Opentelemetry.create("postevent");
         var ds = JdbcTelemetry.create(ot).wrap(DatabaseSetup.createPool(cfg));
 
         try {
             if (write.length > 0) {
-                try {
-                    cs = new ConsumerServer(ds, cfg, ot);
-                    cs.start(50052);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                cs = new ConsumerServer(ds, cfg, ot);
+                cs.start(50052);
             }
 
             if (topichosts.length == 1 && topichosts[0].equals("localhost")) {
@@ -133,7 +139,8 @@ public class App {
                 }
 
             } else {
-                writeContinuously(ds, affinity, write, ot);
+                Thread.currentThread().join();
+                // writeContinuously(ds, affinity, write, ot);
             }
 
         } finally {
@@ -142,11 +149,32 @@ public class App {
         }
     }
 
-    private static ConsumerClient runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
-            OpenTelemetry ot) {
-        ConsumerClient cc;
-        cc = new ConsumerClient(ot);
-        cc.start(Set.of(read), ds, topichosts[0], 50052);
+    private static SslContext buildSslContext() {
+        try {
+            return GrpcSslContexts.forClient()
+                    .trustManager(InsecureTrustManagerFactory.INSTANCE) // Skip verification - only for internal/dev use
+                    .build();
+        } catch (SSLException e) {
+            throw new RuntimeException("Failed to create SSL context", e);
+        }
+    }
+
+    private static NettyChannelBuilder buildClientChannel(String host, int port) {
+        return NettyChannelBuilder.forAddress(host, port)
+                .keepAliveTime(1, TimeUnit.HOURS)
+                .keepAliveTimeout(30, TimeUnit.SECONDS)
+                .useTransportSecurity() // Change from usePlaintext()
+                .overrideAuthority("postevent.internal") // Match certificate common name
+                .sslContext(buildSslContext());
+    }
+
+    private static RemotePersistentConsumer runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
+                                                              OpenTelemetry ot) {
+
+        RemotePersistentConsumer cc;
+        cc = new RemotePersistentConsumer(ot, 10);
+        cc.start(Set.of(read), ds, buildClientChannel(topichosts[0], 50052).build());
+
         for (var topic : read) {
             cc.subscribe(topic, (ev) -> {
                 for (var wt : write) {

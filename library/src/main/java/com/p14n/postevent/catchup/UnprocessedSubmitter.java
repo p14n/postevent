@@ -3,31 +3,44 @@ package com.p14n.postevent.catchup;
 import com.p14n.postevent.broker.MessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
 import com.p14n.postevent.broker.SystemEvent;
+import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
+public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent>, OneAtATimeBehaviour {
 
     private final MessageBroker<Event, ?> targetBroker;
     private final DataSource ds;
     private final UnprocessedEventFinder unprocessedEventFinder;
+    private final int batchSize;
+    private final SystemEventBroker systemEventBroker;
+    final AtomicInteger signals = new AtomicInteger(0);
+    final AtomicBoolean running = new AtomicBoolean(false);
 
-    public UnprocessedSubmitter(DataSource ds, UnprocessedEventFinder unprocessedEventFinder,
-            MessageBroker<Event, ?> targetBroker) {
+    public UnprocessedSubmitter(SystemEventBroker systemEventBroker, DataSource ds,
+            UnprocessedEventFinder unprocessedEventFinder,
+            MessageBroker<Event, ?> targetBroker, int batchSize) {
         this.targetBroker = targetBroker;
         this.ds = ds;
         this.unprocessedEventFinder = unprocessedEventFinder;
+        this.batchSize = batchSize;
+        this.systemEventBroker = systemEventBroker;
     }
 
     private void resubmit() {
         try (Connection c = ds.getConnection()) {
-            var events = unprocessedEventFinder.findUnprocessedEvents(c);
+            var events = unprocessedEventFinder.findUnprocessedEventsWithLimit(c, batchSize);
             for (var e : events) {
                 targetBroker.publish(e.topic(), e);
+            }
+            if (events.size() == batchSize) {
+                systemEventBroker.publish(SystemEvent.UnprocessedCheckRequired);
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -37,9 +50,17 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent> {
     @Override
     public void onMessage(SystemEvent message) {
         if (message == SystemEvent.UnprocessedCheckRequired) {
-            resubmit();
-            ;
+            oneAtATime(() -> resubmit(), () -> onMessage(message));
         }
     }
 
+    @Override
+    public AtomicInteger getSignals() {
+        return signals;
+    }
+
+    @Override
+    public AtomicBoolean getRunning() {
+        return running;
+    }
 }

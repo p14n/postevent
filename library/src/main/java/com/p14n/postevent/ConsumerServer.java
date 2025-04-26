@@ -65,7 +65,6 @@ public class ConsumerServer implements AutoCloseable {
                     .start();
 
             logger.atInfo().log("Consumer server started successfully");
-
         } catch (Exception e) {
             logger.atError()
                     .setCause(e)

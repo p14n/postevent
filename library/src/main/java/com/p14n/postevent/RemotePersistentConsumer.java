@@ -29,22 +29,24 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-public class ConsumerClient implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerClient.class);
+public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
+    private static final Logger logger = LoggerFactory.getLogger(RemotePersistentConsumer.class);
 
     private AsyncExecutor asyncExecutor;
     private List<AutoCloseable> closeables;
     private TransactionalBroker tb;
     SystemEventBroker seb;
     OpenTelemetry ot;
+    private final int batchSize;
 
-    public ConsumerClient(OpenTelemetry ot, AsyncExecutor asyncExecutor) {
+    public RemotePersistentConsumer(OpenTelemetry ot, AsyncExecutor asyncExecutor, int batchSize) {
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
+        this.batchSize = batchSize;
     }
 
-    public ConsumerClient(OpenTelemetry ot) {
-        this(ot, new DefaultExecutor(2));
+    public RemotePersistentConsumer(OpenTelemetry ot, int batchSize) {
+        this(ot, new DefaultExecutor(2, batchSize), batchSize);
     }
 
     public void start(Set<String> topics, DataSource ds, String host, int port) {
@@ -67,14 +69,14 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
             tb = new TransactionalBroker(ds, asyncExecutor, ot);
             seb = new SystemEventBroker(asyncExecutor, ot);
             var pb = new PersistentBroker<>(tb, ds, seb);
-            var client = new MessageBrokerGrpcClient(ot, channel);
+            var client = new MessageBrokerGrpcClient(asyncExecutor, ot, channel); // needs fixed threads
             var catchupClient = new CatchupGrpcClient(channel);
 
             for (var topic : topics) {
                 client.subscribe(topic, pb);
             }
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
-            seb.subscribe(new UnprocessedSubmitter(ds, new UnprocessedEventFinder(), tb));
+            seb.subscribe(new UnprocessedSubmitter(seb,ds, new UnprocessedEventFinder(), tb, batchSize));
 
             asyncExecutor.scheduleAtFixedRate(
                     () -> seb.publish(SystemEvent.UnprocessedCheckRequired),
