@@ -116,7 +116,7 @@ public class App {
         // 3 read/writw - server and client
         // 4 read only - client only
         ConsumerServer cs = null;
-        ConsumerClient cc = null;
+        RemotePersistentConsumer cc = null;
 
         var ot = Opentelemetry.create("postevent");
         var ds = JdbcTelemetry.create(ot).wrap(DatabaseSetup.createPool(cfg));
@@ -168,11 +168,11 @@ public class App {
                 .sslContext(buildSslContext());
     }
 
-    private static ConsumerClient runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
-            OpenTelemetry ot) {
+    private static RemotePersistentConsumer runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
+                                                              OpenTelemetry ot) {
 
-        ConsumerClient cc;
-        cc = new ConsumerClient(ot, 10);
+        RemotePersistentConsumer cc;
+        cc = new RemotePersistentConsumer(ot, 10);
         cc.start(Set.of(read), ds, buildClientChannel(topichosts[0], 50052).build());
 
         for (var topic : read) {

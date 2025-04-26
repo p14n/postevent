@@ -31,6 +31,8 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
     private final DataSource datasource;
     private int batchSize = DEFAULT_BATCH_SIZE;
     private final SystemEventBroker systemEventBroker;
+    final AtomicInteger signals = new AtomicInteger(0);
+    final AtomicBoolean running = new AtomicBoolean(false);
 
     public CatchupService(DataSource ds, CatchupServerInterface catchupServer, SystemEventBroker systemEventBroker) {
         this.datasource = ds;
@@ -277,6 +279,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
                 return shouldUpdate;
             }
         }
+    }
+
+    @Override
+    public AtomicInteger getSignals() {
+        return signals;
+    }
+
+    @Override
+    public AtomicBoolean getRunning() {
+        return running;
     }
 
 }

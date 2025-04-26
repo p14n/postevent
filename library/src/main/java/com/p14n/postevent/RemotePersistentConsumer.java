@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-public class ConsumerClient implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
-    private static final Logger logger = LoggerFactory.getLogger(ConsumerClient.class);
+public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
+    private static final Logger logger = LoggerFactory.getLogger(RemotePersistentConsumer.class);
 
     private AsyncExecutor asyncExecutor;
     private List<AutoCloseable> closeables;
@@ -39,13 +39,13 @@ public class ConsumerClient implements AutoCloseable, MessageBroker<Transactiona
     OpenTelemetry ot;
     private final int batchSize;
 
-    public ConsumerClient(OpenTelemetry ot, AsyncExecutor asyncExecutor, int batchSize) {
+    public RemotePersistentConsumer(OpenTelemetry ot, AsyncExecutor asyncExecutor, int batchSize) {
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
         this.batchSize = batchSize;
     }
 
-    public ConsumerClient(OpenTelemetry ot, int batchSize) {
+    public RemotePersistentConsumer(OpenTelemetry ot, int batchSize) {
         this(ot, new DefaultExecutor(2, batchSize), batchSize);
     }
 

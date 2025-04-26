@@ -20,6 +20,8 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent>, One
     private final UnprocessedEventFinder unprocessedEventFinder;
     private final int batchSize;
     private final SystemEventBroker systemEventBroker;
+    final AtomicInteger signals = new AtomicInteger(0);
+    final AtomicBoolean running = new AtomicBoolean(false);
 
     public UnprocessedSubmitter(SystemEventBroker systemEventBroker, DataSource ds,
             UnprocessedEventFinder unprocessedEventFinder,
@@ -52,4 +54,13 @@ public class UnprocessedSubmitter implements MessageSubscriber<SystemEvent>, One
         }
     }
 
+    @Override
+    public AtomicInteger getSignals() {
+        return signals;
+    }
+
+    @Override
+    public AtomicBoolean getRunning() {
+        return running;
+    }
 }
