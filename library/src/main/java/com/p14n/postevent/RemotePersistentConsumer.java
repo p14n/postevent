@@ -76,10 +76,15 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
                 client.subscribe(topic, pb);
             }
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
-            seb.subscribe(new UnprocessedSubmitter(seb,ds, new UnprocessedEventFinder(), tb, batchSize));
+            seb.subscribe(new UnprocessedSubmitter(seb, ds, new UnprocessedEventFinder(), tb, batchSize));
 
             asyncExecutor.scheduleAtFixedRate(
-                    () -> seb.publish(SystemEvent.UnprocessedCheckRequired),
+                    () -> {
+                        seb.publish(SystemEvent.UnprocessedCheckRequired);
+                        for (String topic : topics) {
+                            seb.publish(SystemEvent.FetchLatest.withTopic(topic));
+                        }
+                    },
                     30, 30, TimeUnit.SECONDS);
 
             closeables = List.of(client, catchupClient, pb, seb, tb);

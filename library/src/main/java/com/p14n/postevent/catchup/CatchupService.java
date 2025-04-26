@@ -186,6 +186,66 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
             oneAtATime(() -> catchup(message.topic), () -> onMessage(message));
+        } else if (message == SystemEvent.FetchLatest) {
+            oneAtATime(() -> fetchLatest(message.topic), () -> onMessage(message));
+        }
+    }
+
+    private int fetchLatest(String topicName) {
+        if (topicName == null) {
+            LOGGER.warn("Topic name is null for fetch latest");
+            return 0;
+        }
+
+        try (Connection conn = datasource.getConnection()) {
+            conn.setAutoCommit(false);
+
+            long currentHwm = getCurrentHwm(conn, topicName);
+
+            // Get the latest message ID from the server
+            long latestMessageId = catchupServer.getLatestMessageId(topicName);
+
+            if (latestMessageId <= currentHwm) {
+                LOGGER.info("No new messages found after HWM {} for topic {}", currentHwm, topicName);
+                return 0;
+            }
+
+            // Fetch just the latest message
+            List<Event> events = catchupServer.fetchEvents(latestMessageId - 1, latestMessageId, 1, topicName);
+
+            if (events.isEmpty()) {
+                LOGGER.info("No events found in range for topic: " + topicName);
+                return 0;
+            }
+
+            // Write event to messages table
+            int processedCount = writeEventsToMessagesTable(conn, events);
+
+            LOGGER.info("Processed latest event for topic {}",
+                    topicName);
+
+            conn.commit();
+
+            // If there are more messages between currentHwm and latestMessageId,
+            // trigger a catchup to get the rest
+            systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
+
+            return processedCount;
+        } catch (SQLException e) {
+            LOGGER.error("Failed to fetch latest", e);
+            return 0;
+        }
+    }
+
+    private long findLatestMessageId(Connection connection, String topicName) throws SQLException {
+        String sql = "SELECT MAX(idn) FROM postevent." + topicName;
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+                return 0;
+            }
         }
     }
 

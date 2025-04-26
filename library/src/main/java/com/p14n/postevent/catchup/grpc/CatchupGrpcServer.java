@@ -60,6 +60,23 @@ public class CatchupGrpcServer {
         }
 
         @Override
+        public void getLatestMessageId(TopicRequest request, StreamObserver<LatestMessageIdResponse> responseObserver) {
+            try {
+                long latestId = catchupServer.getLatestMessageId(request.getTopic());
+
+                LatestMessageIdResponse response = LatestMessageIdResponse.newBuilder()
+                        .setMessageId(latestId)
+                        .build();
+
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.error("Error getting latest message ID", e);
+                responseObserver.onError(e);
+            }
+        }
+
+        @Override
         public void fetchEvents(FetchEventsRequest request, StreamObserver<FetchEventsResponse> responseObserver) {
             try {
                 List<Event> events = catchupServer.fetchEvents(
