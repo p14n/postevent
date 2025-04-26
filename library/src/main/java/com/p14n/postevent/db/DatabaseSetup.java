@@ -62,7 +62,7 @@ public class DatabaseSetup {
                 return this;
             }
             for (var slotName : slotNames) {
-                try (var call = conn.prepareCall("call pg_drop_replication_slot(?)")) {
+                try (var call = conn.prepareCall("select pg_drop_replication_slot(?)")) {
                     call.setString(1, slotName);
                     call.execute();
                 }

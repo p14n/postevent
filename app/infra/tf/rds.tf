@@ -30,7 +30,8 @@ resource "aws_db_instance" "postevent" {
   identifier                   = "postevent-${count.index}"
   engine                       = "postgres"
   engine_version               = "17"
-  instance_class               = "db.t3.micro"
+  instance_class               = "db.t4g.micro"
+  storage_type                 = "gp3"
   allocated_storage            = 20
   storage_encrypted            = true
   performance_insights_enabled = true

@@ -139,8 +139,7 @@ public class App {
                 }
 
             } else {
-                Thread.currentThread().join();
-                // writeContinuously(ds, affinity, write, ot);
+                writeContinuously(ds, affinity, write, ot);
             }
 
         } finally {
@@ -168,8 +167,9 @@ public class App {
                 .sslContext(buildSslContext());
     }
 
-    private static RemotePersistentConsumer runConsumerClient(String[] write, String[] read, String[] topichosts, DataSource ds,
-                                                              OpenTelemetry ot) {
+    private static RemotePersistentConsumer runConsumerClient(String[] write, String[] read, String[] topichosts,
+            DataSource ds,
+            OpenTelemetry ot) {
 
         RemotePersistentConsumer cc;
         cc = new RemotePersistentConsumer(ot, 10);
