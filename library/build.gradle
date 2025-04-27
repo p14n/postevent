@@ -62,8 +62,6 @@ dependencies {
     // Instrumentation for GRPC
     implementation 'io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.32.0-alpha'
 
-    // Logging integration
-    //implementation 'io.opentelemetry:opentelemetry-extension-logging:1.32.0'
 }
 
 testlogger {
@@ -94,6 +92,7 @@ test {
     failFast = true
     testLogging.showStandardStreams = true
 }
+
 task fastTest( type: Test ) {
     useJUnitPlatform {
         includeEngines 'junit-jupiter'
@@ -105,11 +104,6 @@ task fastTest( type: Test ) {
 jar {
     manifest {
     }
-}
-
-task runHelloWorld(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.p14n.postevent.HelloWorld'
 }
 
 // Configure Protobuf plugin
@@ -129,7 +123,6 @@ protobuf {
     }
 }
 
-// Make sure the generated code is included in the source sets
 sourceSets {
     main {
         java {
@@ -152,11 +145,7 @@ mavenPublishing {
  
   configure(new JavaLibrary(new JavadocJar.Javadoc(), true))
 
-  //publishToMavenCentral(SonatypeHost.DEFAULT)
-  // or when publishing to https://s01.oss.sonatype.org
-  //publishToMavenCentral(SonatypeHost.S01)
-  // or when publishing to https://central.sonatype.com/
-  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, true)
 
   signAllPublications()
 

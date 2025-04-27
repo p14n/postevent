@@ -8,7 +8,7 @@
 
 [![Build Status](https://github.com/p14n/postevent/workflows/Test%20PR/badge.svg)](https://github.com/p14n/postevent/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/yourusername/postevent)](https://github.com/yourusername/postevent/releases)
+[![Latest Release](https://img.shields.io/github/v/release/p14n/postevent)](https://github.com/yourusername/p14n/releases)
 
 A reliable event publishing and consumption system using PostgreSQL and gRPC, following the CloudEvents specification.
 
@@ -36,7 +36,7 @@ A reliable event publishing and consumption system using PostgreSQL and gRPC, fo
 
 #### Gradle
 ```groovy
-implementation 'com.p14n:postevent:1.0.0'
+implementation 'com.p14n:postevent:1.0.0-SNAPSHOT'
 ```
 
 #### Maven
@@ -44,7 +44,7 @@ implementation 'com.p14n:postevent:1.0.0'
 <dependency>
     <groupId>com.p14n</groupId>
     <artifactId>postevent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -155,8 +155,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - Create an [Issue](https://github.com/yourusername/postevent/issues)
-- Join our [Discord/Slack] community
-- Email: support@yourdomain.com
 
 ## Acknowledgments
 
@@ -166,4 +164,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Project Status
 
-Active development, production-ready.
+Active development.
