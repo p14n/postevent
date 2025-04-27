@@ -1,8 +1,11 @@
-package com.p14n.postevent.broker.grpc;
+package com.p14n.postevent.broker.remote;
 
 import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.grpc.EventResponse;
+import com.p14n.postevent.broker.grpc.MessageBrokerServiceGrpc;
+import com.p14n.postevent.broker.grpc.SubscriptionRequest;
 import com.p14n.postevent.data.Event;
 
 import io.grpc.ManagedChannel;
@@ -18,14 +21,37 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A gRPC client implementation of the EventMessageBroker that connects to a
+ * remote message broker service.
+ * Provides streaming event subscription and publication capabilities over gRPC.
+ *
+ * <p>
+ * Key features:
+ * </p>
+ * <ul>
+ * <li>Streaming event subscription via gRPC</li>
+ * <li>Automatic reconnection handling</li>
+ * <li>Thread-safe subscription management</li>
+ * <li>OpenTelemetry integration for observability</li>
+ * </ul>
+ */
 public class MessageBrokerGrpcClient extends EventMessageBroker {
     private static final Logger logger = LoggerFactory.getLogger(MessageBrokerGrpcClient.class);
 
     private final MessageBrokerServiceGrpc.MessageBrokerServiceStub asyncStub;
-    private final Set<String> subscribed = ConcurrentHashMap.newKeySet();;
+    private final Set<String> subscribed = ConcurrentHashMap.newKeySet();
 
     ManagedChannel channel;
 
+    /**
+     * Creates a new MessageBrokerGrpcClient with the specified host and port.
+     *
+     * @param asyncExecutor Executor for handling asynchronous operations
+     * @param ot            OpenTelemetry instance for monitoring
+     * @param host          Remote broker host address
+     * @param port          Remote broker port
+     */
     public MessageBrokerGrpcClient(AsyncExecutor asyncExecutor, OpenTelemetry ot, String host, int port) {
         this(asyncExecutor, ot, ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
@@ -34,12 +60,25 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
                 .build());
     }
 
+    /**
+     * Creates a new MessageBrokerGrpcClient with a pre-configured gRPC channel.
+     *
+     * @param asyncExecutor Executor for handling asynchronous operations
+     * @param ot            OpenTelemetry instance for monitoring
+     * @param channel       Pre-configured gRPC ManagedChannel
+     */
     public MessageBrokerGrpcClient(AsyncExecutor asyncExecutor, OpenTelemetry ot, ManagedChannel channel) {
         super(asyncExecutor, ot, "grpc_client_broker");
         this.channel = channel;
         this.asyncStub = MessageBrokerServiceGrpc.newStub(channel);
     }
 
+    /**
+     * Establishes a streaming subscription to events on the specified topic.
+     * Creates a gRPC stream observer to handle incoming events and errors.
+     *
+     * @param topic Topic to subscribe to
+     */
     public void subscribeToEvents(String topic) {
         SubscriptionRequest request = SubscriptionRequest.newBuilder()
                 .setTopic(topic)
@@ -60,7 +99,6 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
             @Override
             public void onError(Throwable t) {
                 logger.atError().setCause(t).log("Error in event stream");
-                // subscribed.remove(topic);
             }
 
             @Override
@@ -72,10 +110,14 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
 
         asyncStub.subscribeToEvents(request, responseObserver);
         subscribed.add(topic);
-        // Send the subscription request
-
     }
 
+    /**
+     * Converts a gRPC event response into an internal Event object.
+     *
+     * @param grpcEvent The gRPC event response to convert
+     * @return Converted Event object
+     */
     private Event convertFromGrpcEvent(EventResponse grpcEvent) {
         OffsetDateTime time = null;
         if (!grpcEvent.getTime().isEmpty()) {
@@ -95,11 +137,24 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
                 grpcEvent.getTraceparent());
     }
 
+    /**
+     * {@inheritDoc}
+     * Publishes an event to the specified topic.
+     */
     @Override
     public void publish(String topic, Event message) {
         super.publish(topic, message);
     }
 
+    /**
+     * {@inheritDoc}
+     * Subscribes to events on the specified topic, establishing a gRPC stream if
+     * needed.
+     *
+     * @param topic      Topic to subscribe to
+     * @param subscriber Subscriber to receive events
+     * @return true if subscription was successful, false otherwise
+     */
     @Override
     public boolean subscribe(String topic, MessageSubscriber<Event> subscriber) {
         if (super.subscribe(topic, subscriber)) {
@@ -111,6 +166,14 @@ public class MessageBrokerGrpcClient extends EventMessageBroker {
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     * Unsubscribes from events and manages gRPC channel cleanup.
+     *
+     * @param topic      Topic to unsubscribe from
+     * @param subscriber Subscriber to remove
+     * @return true if unsubscription was successful, false otherwise
+     */
     @Override
     public boolean unsubscribe(String topic, MessageSubscriber<Event> subscriber) {
         boolean unsubscribed = super.unsubscribe(topic, subscriber);

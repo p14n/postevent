@@ -143,6 +143,11 @@ tasks.withType(Jar) {
    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+javadoc {
+  exclude "**/grpc/**"
+  source = sourceSets.main.allJava
+}
+
 mavenPublishing {
  
   configure(new JavaLibrary(new JavadocJar.Javadoc(), true))

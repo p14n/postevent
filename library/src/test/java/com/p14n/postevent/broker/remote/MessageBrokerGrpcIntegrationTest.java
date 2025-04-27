@@ -1,4 +1,4 @@
-package com.p14n.postevent.broker.grpc;
+package com.p14n.postevent.broker.remote;
 
 import com.p14n.postevent.broker.DefaultExecutor;
 import com.p14n.postevent.broker.DefaultMessageBroker;
