@@ -95,6 +95,10 @@ public class Publisher {
      *                                  invalid characters
      */
     public static void publish(Event event, DataSource ds, String topic) throws SQLException {
+        if (topic == null || topic.trim().isEmpty() || !topic.matches("[a-z_]+")) {
+            throw new IllegalArgumentException("Invalid topic name: must be non-null, non-empty, and only contain lowercase letters and underscores.");
+        }
+
         try (Connection c = ds.getConnection()) {
             publish(event, c, topic);
         }
