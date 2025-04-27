@@ -36,7 +36,7 @@ A reliable event publishing and consumption system using PostgreSQL and gRPC, fo
 
 #### Gradle
 ```groovy
-implementation 'com.p14n:postevent:1.0.0-SNAPSHOT'
+implementation 'com.p14n:postevent:1.0.0'
 ```
 
 #### Maven
@@ -44,8 +44,12 @@ implementation 'com.p14n:postevent:1.0.0-SNAPSHOT'
 <dependency>
     <groupId>com.p14n</groupId>
     <artifactId>postevent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 </dependency>
+```
+#### Clojure tools deps
+```edn
+com.p14n/postevent {:mvn/version "1.0.0"}
 ```
 
 ### Basic Usage
