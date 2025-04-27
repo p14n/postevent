@@ -1,6 +1,8 @@
-package com.p14n.postevent.catchup.grpc;
+package com.p14n.postevent.catchup.remote;
 
 import com.p14n.postevent.catchup.CatchupServerInterface;
+import com.p14n.postevent.catchup.remote.CatchupGrpcClient;
+import com.p14n.postevent.catchup.remote.CatchupGrpcServer;
 import com.p14n.postevent.data.Event;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

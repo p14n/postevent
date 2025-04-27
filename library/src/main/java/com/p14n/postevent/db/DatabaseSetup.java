@@ -15,25 +15,75 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Set;
 
+/**
+ * Handles PostgreSQL database setup and initialization for the PostEvent
+ * system.
+ * This class manages schema creation, table initialization, and replication
+ * slot cleanup.
+ *
+ * <p>
+ * Key responsibilities include:
+ * <ul>
+ * <li>Creating the PostEvent schema</li>
+ * <li>Initializing topic-specific tables</li>
+ * <li>Setting up message tracking tables</li>
+ * <li>Managing replication slots</li>
+ * <li>Providing connection pool setup</li>
+ * </ul>
+ *
+ * <p>
+ * Example usage:
+ * </p>
+ * 
+ * <pre>{@code
+ * PostEventConfig config = // initialize configuration
+ * DatabaseSetup setup = new DatabaseSetup(config);
+ * 
+ * // Setup all required tables for given topics
+ * setup.setupAll(Set.of("orders", "inventory"));
+ * 
+ * // Create connection pool
+ * DataSource pool = DatabaseSetup.createPool(config);
+ * }</pre>
+ */
 public class DatabaseSetup {
-    // SELECT 'select pg_drop_replication_slot(''' || slot_name ||''');' FROM
-    // pg_replication_slots where active=false and slot_name like 'postevent%';
     private static final Logger logger = LoggerFactory.getLogger(DatabaseSetup.class);
 
     private final String jdbcUrl;
     private final String username;
     private final String password;
 
+    /**
+     * Creates a new DatabaseSetup instance using configuration from
+     * PostEventConfig.
+     *
+     * @param cfg Configuration containing database connection details
+     */
     public DatabaseSetup(PostEventConfig cfg) {
         this(cfg.jdbcUrl(), cfg.dbUser(), cfg.dbPassword());
     }
 
+    /**
+     * Creates a new DatabaseSetup instance with explicit connection parameters.
+     *
+     * @param jdbcUrl  PostgreSQL JDBC URL
+     * @param username Database username
+     * @param password Database password
+     */
     public DatabaseSetup(String jdbcUrl, String username, String password) {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
     }
 
+    /**
+     * Performs complete database setup for multiple topics.
+     * Creates schema, message tables, and topic-specific tables.
+     *
+     * @param topics Set of topic names to initialize
+     * @return this instance for method chaining
+     * @throws RuntimeException if database operations fail
+     */
     public DatabaseSetup setupAll(Set<String> topics) {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
@@ -43,10 +93,23 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Performs complete database setup for a single topic.
+     *
+     * @param topic Topic name to initialize
+     * @return this instance for method chaining
+     * @throws RuntimeException if database operations fail
+     */
     public DatabaseSetup setupAll(String topic) {
         return setupAll(Set.of(topic));
     }
 
+    /**
+     * Removes inactive replication slots with names starting with 'postevent'.
+     * This cleanup prevents accumulation of unused slots.
+     *
+     * @return this instance for method chaining
+     */
     public DatabaseSetup clearOldSlots() {
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement()) {
@@ -73,6 +136,12 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Creates the PostEvent schema if it doesn't exist.
+     *
+     * @return this instance for method chaining
+     * @throws RuntimeException if schema creation fails
+     */
     public DatabaseSetup createSchemaIfNotExists() {
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement()) {
@@ -88,6 +157,15 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Creates a topic-specific table if it doesn't exist.
+     * The table stores event data with unique constraints on ID and source.
+     *
+     * @param topic Name of the topic table to create
+     * @return this instance for method chaining
+     * @throws IllegalArgumentException if topic name is invalid
+     * @throws RuntimeException         if table creation fails
+     */
     public DatabaseSetup createTableIfNotExists(String topic) {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic name cannot be null or empty");
@@ -124,6 +202,14 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Creates the messages table if it doesn't exist.
+     * This table stores all events with their processing status and supports
+     * efficient querying.
+     *
+     * @return this instance for method chaining
+     * @throws RuntimeException if table creation fails
+     */
     public DatabaseSetup createMessagesTableIfNotExists() {
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement()) {
@@ -147,12 +233,12 @@ public class DatabaseSetup {
 
             stmt.execute(sql);
 
-            // Existing index for hasUnprocessedPriorEvents
+            // Index for hasUnprocessedPriorEvents query
             stmt.execute("""
                     CREATE INDEX IF NOT EXISTS idx_messages_subject_topic_idn_status
                     ON postevent.messages (subject, topic, idn, status)""");
 
-            // New index for findUnprocessedEvents query
+            // Index for findUnprocessedEvents query
             stmt.execute("""
                     CREATE INDEX IF NOT EXISTS idx_messages_status_time
                     ON postevent.messages (status, time)""");
@@ -166,6 +252,14 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Creates the contiguous high-water mark table if it doesn't exist.
+     * This table tracks the latest continuously processed message ID for each
+     * topic.
+     *
+     * @return this instance for method chaining
+     * @throws RuntimeException if table creation fails
+     */
     public DatabaseSetup createContiguousHwmTableIfNotExists() {
         try (Connection conn = getConnection();
                 Statement stmt = conn.createStatement()) {
@@ -186,10 +280,22 @@ public class DatabaseSetup {
         return this;
     }
 
+    /**
+     * Creates a database connection using the configured credentials.
+     *
+     * @return A new database Connection
+     * @throws SQLException if connection fails
+     */
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(jdbcUrl, username, password);
     }
 
+    /**
+     * Creates and configures a connection pool using HikariCP.
+     *
+     * @param cfg Configuration containing database connection details
+     * @return Configured DataSource
+     */
     public static DataSource createPool(PostEventConfig cfg) {
         HikariDataSource ds = new HikariDataSource();
         ds.setJdbcUrl(cfg.jdbcUrl());

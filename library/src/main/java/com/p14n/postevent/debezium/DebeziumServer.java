@@ -19,9 +19,69 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Server implementation for Debezium Change Data Capture (CDC).
+ * Manages a Debezium engine instance to capture database changes and forward
+ * them to a consumer.
+ * Supports PostgreSQL CDC using the pgoutput plugin with configurable topics
+ * and affinity.
+ *
+ * <p>
+ * The server uses JDBC offset storage for tracking progress and supports
+ * filtered publication mode.
+ * It automatically manages replication slots and cleanup on shutdown.
+ * </p>
+ *
+ * <p>
+ * Example usage:
+ * </p>
+ * 
+ * <pre>{@code
+ * PostEventConfig config = // initialize configuration
+ * DebeziumServer server = new DebeziumServer();
+ *
+ * // Start the server with a consumer
+ * server.start(config, event -> {
+ *     // Process the change event
+ *     System.out.println("Received change: " + event);
+ * });
+ *
+ * // Shutdown when done
+ * server.stop();
+ * }</pre>
+ */
 public class DebeziumServer {
         private static final Logger logger = LoggerFactory.getLogger(DebeziumServer.class);
 
+        /**
+         * Constructs a new DebeziumServer instance.
+         */
+        public DebeziumServer() {
+        }
+
+        /**
+         * Creates Debezium configuration properties for PostgreSQL CDC.
+         *
+         * <p>
+         * Configures:
+         * </p>
+         * <ul>
+         * <li>PostgreSQL connector with pgoutput plugin</li>
+         * <li>JDBC offset storage with affinity-based partitioning</li>
+         * <li>Filtered publication mode for specified topics</li>
+         * <li>Automatic replication slot management</li>
+         * </ul>
+         *
+         * @param affinity     Identifier for this instance, used for offset tracking
+         * @param topics       Set of topics to monitor for changes
+         * @param dbHost       Database host address
+         * @param dbPort       Database port
+         * @param dbUser       Database username
+         * @param dbPassword   Database password
+         * @param dbName       Database name
+         * @param pollInterval Interval in milliseconds between polls
+         * @return Properties configured for Debezium PostgreSQL connector
+         */
         public static Properties props(
                         String affinity,
                         Set<String> topics,
@@ -47,7 +107,7 @@ public class DebeziumServer {
                 props.setProperty("offset.storage.jdbc.user", dbUser);
                 props.setProperty("offset.storage.jdbc.password", dbPassword);
                 props.setProperty("offset.flush.interval.ms", "1000");
-                props.setProperty("poll.interval.ms",String.valueOf(pollInterval));
+                props.setProperty("poll.interval.ms", String.valueOf(pollInterval));
                 props.setProperty("database.hostname", dbHost);
                 props.setProperty("plugin.name", "pgoutput");
                 props.setProperty("database.port", dbPort);
@@ -81,6 +141,24 @@ public class DebeziumServer {
         private ExecutorService executor;
         private DebeziumEngine<ChangeEvent<String, String>> engine;
 
+        /**
+         * Starts the Debezium engine with the specified configuration and consumer.
+         *
+         * <p>
+         * Initializes a single-threaded executor and configures the Debezium engine to:
+         * <ul>
+         * <li>Use JSON format for change events</li>
+         * <li>Monitor configured topics for changes</li>
+         * <li>Forward events to the provided consumer</li>
+         * </ul>
+         *
+         * @param cfg      Configuration for the Debezium engine
+         * @param consumer Consumer to process change events
+         * @throws IllegalStateException if the consumer is null, config is null, or
+         *                               startup timeout is exceeded
+         * @throws IOException           if engine initialization fails
+         * @throws InterruptedException  if startup is interrupted
+         */
         public void start(PostEventConfig cfg,
                         Consumer<ChangeEvent<String, String>> consumer) throws IOException, InterruptedException {
                 if (consumer == null) {
@@ -121,6 +199,12 @@ public class DebeziumServer {
                 logger.atInfo().log("Debezium engine started successfully");
         }
 
+        /**
+         * Stops the Debezium engine and executor service.
+         * Ensures clean shutdown of resources with a 5-second timeout.
+         *
+         * @throws IOException if engine shutdown fails
+         */
         public void stop() throws IOException {
                 if (executor != null) {
                         executor.shutdown();
@@ -139,7 +223,5 @@ public class DebeziumServer {
                                 logger.error("Shutdown interrupted", e);
                         }
                 }
-
         }
-
 }

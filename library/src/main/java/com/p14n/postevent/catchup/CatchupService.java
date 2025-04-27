@@ -21,7 +21,29 @@ import org.slf4j.LoggerFactory;
 import javax.sql.DataSource;
 
 /**
- * Service to handle catching up on missed events for topics.
+ * Service responsible for managing event catchup operations and maintaining
+ * high water marks (HWM).
+ * Implements both MessageSubscriber for SystemEvents and OneAtATimeBehaviour
+ * for sequential processing.
+ * 
+ * <p>
+ * Key features:
+ * </p>
+ * <ul>
+ * <li>Event catchup processing for missed events</li>
+ * <li>High water mark (HWM) management</li>
+ * <li>Gap detection in event sequences</li>
+ * <li>Sequential processing of catchup operations</li>
+ * </ul>
+ * 
+ * <p>
+ * The service responds to two types of system events:
+ * </p>
+ * <ul>
+ * <li>{@code SystemEvent.CatchupRequired}: Triggers full catchup
+ * processing</li>
+ * <li>{@code SystemEvent.FetchLatest}: Fetches only the latest events</li>
+ * </ul>
  */
 public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATimeBehaviour {
     private static final Logger LOGGER = LoggerFactory.getLogger(CatchupService.class);
@@ -34,6 +56,13 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
     final AtomicInteger signals = new AtomicInteger(0);
     final AtomicBoolean running = new AtomicBoolean(false);
 
+    /**
+     * Creates a new CatchupService instance.
+     *
+     * @param ds                The DataSource for database operations
+     * @param catchupServer     The server interface for fetching catchup events
+     * @param systemEventBroker The broker for publishing system events
+     */
     public CatchupService(DataSource ds, CatchupServerInterface catchupServer, SystemEventBroker systemEventBroker) {
         this.datasource = ds;
         this.catchupServer = catchupServer;
@@ -41,12 +70,12 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
     }
 
     /**
-     * Catches up a topic by processing events since their last high water
-     * mark.
+     * Performs catchup processing for a specific topic.
+     * Fetches missed events between the current high water mark and the next gap,
+     * writes them to the messages table, and updates the HWM accordingly.
      * 
-     * @param topicName The name of the topic
-     * @return The number of events processed
-     * @throws SQLException If a database error occurs
+     * @param topicName The topic to process catchup for
+     * @return The number of events processed during catchup
      */
     public int catchup(String topicName) {
 
@@ -100,6 +129,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Gets the current high water mark (HWM) for a topic from the contiguous_hwm
+     * table.
+     * If no HWM exists for the topic, initializes it with 0.
+     *
+     * @param connection Database connection
+     * @param topicName  Topic to get HWM for
+     * @return Current HWM value
+     * @throws SQLException If database operation fails
+     */
     private long getCurrentHwm(Connection connection, String topicName) throws SQLException {
         String sql = "SELECT hwm FROM postevent.contiguous_hwm WHERE topic_name = ?";
 
@@ -118,6 +157,13 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Initializes the HWM for a topic with value 0.
+     *
+     * @param connection Database connection
+     * @param topicName  Topic to initialize
+     * @throws SQLException If database operation fails
+     */
     private void initializeHwm(Connection connection, String topicName) throws SQLException {
         String sql = "INSERT INTO postevent.contiguous_hwm (topic_name, hwm) VALUES (?, 0) ON CONFLICT DO NOTHING";
 
@@ -128,6 +174,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         getCurrentHwm(connection, topicName);
     }
 
+    /**
+     * Finds the next gap end (lowest idn greater than current HWM) for a topic.
+     *
+     * @param connection Database connection
+     * @param currentHwm Current HWM value
+     * @param topicName  Topic to check
+     * @return The ID of the next message after the gap, or currentHwm if no gap
+     *         exists
+     * @throws SQLException If database operation fails
+     */
     private long findGapEnd(Connection connection, long currentHwm, String topicName) throws SQLException {
         String sql = "SELECT MIN(idn) as next_idn FROM postevent.messages WHERE topic=? AND idn > ?";
 
@@ -146,6 +202,14 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Writes a batch of events to the messages table.
+     *
+     * @param connection Database connection
+     * @param events     List of events to write
+     * @return Number of events successfully written
+     * @throws SQLException If database operation fails
+     */
     private int writeEventsToMessagesTable(Connection connection, List<Event> events) throws SQLException {
         int count = 0;
         String sql = "INSERT INTO postevent.messages (" +
@@ -164,6 +228,16 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         return count;
     }
 
+    /**
+     * Updates the high water mark for a topic using optimistic locking.
+     * Only updates if the current HWM matches the expected value.
+     *
+     * @param connection Database connection
+     * @param topicName  Topic to update
+     * @param currentHwm Expected current HWM value
+     * @param newHwm     New HWM value to set
+     * @throws SQLException If database operation fails
+     */
     private void updateHwm(Connection connection, String topicName, long currentHwm, long newHwm)
             throws SQLException {
         String sql = "UPDATE postevent.contiguous_hwm SET hwm = ? WHERE topic_name = ? AND hwm = ?";
@@ -182,6 +256,12 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Handles incoming system events, processing them one at a time.
+     * Supports CatchupRequired and FetchLatest events.
+     *
+     * @param message The system event to process
+     */
     @Override
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
@@ -191,6 +271,13 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Fetches and processes the latest event for a topic.
+     * If successful, triggers a catchup to process any intermediate events.
+     *
+     * @param topicName Topic to fetch latest event for
+     * @return Number of events processed (0 or 1)
+     */
     private int fetchLatest(String topicName) {
         if (topicName == null) {
             LOGGER.warn("Topic name is null for fetch latest");
@@ -259,6 +346,15 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Processes a result set to check for gaps in message sequence.
+     * Updates the last contiguous IDN as it processes messages.
+     *
+     * @param rs         ResultSet containing message IDNs
+     * @param currentHwm Current HWM value to start checking from
+     * @return GapCheckResult containing gap status and last contiguous IDN
+     * @throws SQLException If database operation fails
+     */
     private GapCheckResult processMessages(ResultSet rs, long currentHwm) throws SQLException {
         long expectedNext = currentHwm + 1;
         long lastContiguousIdn = currentHwm;
@@ -278,11 +374,11 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
     /**
      * Checks for gaps in the message sequence and updates the HWM to the last
      * contiguous message.
-     * 
-     * @param topicName  The name of the topic
-     * @param currentHwm The current high water mark to start checking from
+     *
+     * @param topicName  Topic to check
+     * @param currentHwm Current HWM value
      * @return true if a gap was found, false if no gaps were found
-     * @throws SQLException If a database error occurs
+     * @throws SQLException If database operation fails
      */
     public boolean hasSequenceGap(String topicName, long currentHwm) throws SQLException {
 
@@ -295,6 +391,15 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Internal version of hasSequenceGap that accepts an existing connection.
+     *
+     * @param topicName  Topic to check
+     * @param currentHwm Current HWM value
+     * @param connection Existing database connection to use
+     * @return true if a gap was found, false if no gaps were found
+     * @throws SQLException If database operation fails
+     */
     public boolean hasSequenceGap(String topicName, long currentHwm, Connection connection) throws SQLException {
         LOGGER.info("Checking for sequence gaps after HWM {} for topic {}",
                 new Object[] { currentHwm, topicName });
@@ -320,6 +425,15 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Updates the HWM to the last contiguous message ID for a topic.
+     *
+     * @param topicName  Topic to update
+     * @param currentHwm Current HWM value
+     * @param connection Database connection
+     * @return true if HWM was updated, false if no update was needed
+     * @throws SQLException If database operation fails
+     */
     public boolean updateHwmToLastContiguous(String topicName, long currentHwm, Connection connection)
             throws SQLException {
         String sql = "SELECT idn FROM postevent.messages WHERE topic = ? AND idn > ? ORDER BY idn";

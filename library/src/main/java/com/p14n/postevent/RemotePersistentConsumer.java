@@ -8,11 +8,11 @@ import com.p14n.postevent.broker.SystemEvent;
 import com.p14n.postevent.broker.SystemEventBroker;
 import com.p14n.postevent.broker.TransactionalBroker;
 import com.p14n.postevent.broker.TransactionalEvent;
-import com.p14n.postevent.broker.grpc.MessageBrokerGrpcClient;
+import com.p14n.postevent.broker.remote.MessageBrokerGrpcClient;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.catchup.UnprocessedSubmitter;
-import com.p14n.postevent.catchup.grpc.CatchupGrpcClient;
+import com.p14n.postevent.catchup.remote.CatchupGrpcClient;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 
 import io.grpc.ManagedChannel;
@@ -29,6 +29,41 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A remote consumer implementation that provides persistent event processing
+ * with catchup capabilities.
+ * This consumer connects to a remote event source via gRPC and ensures reliable
+ * event processing
+ * with persistence and automatic catchup for missed events.
+ *
+ * <p>
+ * Key features:
+ * </p>
+ * <ul>
+ * <li>Remote event consumption via gRPC</li>
+ * <li>Persistent event storage</li>
+ * <li>Automatic catchup for missed events</li>
+ * <li>Periodic health checks and catchup triggers</li>
+ * <li>OpenTelemetry integration for observability</li>
+ * </ul>
+ *
+ * <p>
+ * Example usage:
+ * </p>
+ * 
+ * <pre>{@code
+ * var consumer = new RemotePersistentConsumer(openTelemetry, 100);
+ * consumer.start(Set.of("orders", "inventory"), dataSource, "localhost", 8080);
+ *
+ * // Subscribe to events
+ * consumer.subscribe("orders", event -> {
+ *     // Process the event
+ * });
+ *
+ * // When done
+ * consumer.close();
+ * }</pre>
+ */
 public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
     private static final Logger logger = LoggerFactory.getLogger(RemotePersistentConsumer.class);
 
@@ -39,16 +74,37 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
     OpenTelemetry ot;
     private final int batchSize;
 
+    /**
+     * Creates a new RemotePersistentConsumer with custom executor configuration.
+     *
+     * @param ot            OpenTelemetry instance for monitoring
+     * @param asyncExecutor Executor for handling asynchronous operations
+     * @param batchSize     Maximum number of events to process in a batch
+     */
     public RemotePersistentConsumer(OpenTelemetry ot, AsyncExecutor asyncExecutor, int batchSize) {
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
         this.batchSize = batchSize;
     }
 
+    /**
+     * Creates a new RemotePersistentConsumer with default executor configuration.
+     *
+     * @param ot        OpenTelemetry instance for monitoring
+     * @param batchSize Maximum number of events to process in a batch
+     */
     public RemotePersistentConsumer(OpenTelemetry ot, int batchSize) {
         this(ot, new DefaultExecutor(2, batchSize), batchSize);
     }
 
+    /**
+     * Starts the consumer with the specified configuration.
+     *
+     * @param topics Set of topics to subscribe to
+     * @param ds     DataSource for event persistence
+     * @param host   Remote host address
+     * @param port   Remote host port
+     */
     public void start(Set<String> topics, DataSource ds, String host, int port) {
         start(topics, ds, ManagedChannelBuilder.forAddress(host, port)
                 .keepAliveTime(1, TimeUnit.HOURS)
@@ -57,6 +113,14 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
                 .build());
     }
 
+    /**
+     * Starts the consumer with a pre-configured gRPC channel.
+     *
+     * @param topics  Set of topics to subscribe to
+     * @param ds      DataSource for event persistence
+     * @param channel Configured gRPC channel
+     * @throws IllegalStateException if the consumer is already started
+     */
     public void start(Set<String> topics, DataSource ds, ManagedChannel channel) {
         logger.atInfo().log("Starting consumer client");
 
@@ -99,6 +163,11 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
         }
     }
 
+    /**
+     * Closes all resources associated with this consumer.
+     * This includes the message brokers, gRPC channel, and other closeable
+     * resources.
+     */
     @Override
     public void close() {
         logger.atInfo().log("Closing consumer client");
@@ -117,6 +186,13 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
         logger.atInfo().log("Consumer client closed");
     }
 
+    /**
+     * Publishes a transactional event to the specified topic.
+     *
+     * @param topic   The topic to publish to
+     * @param message The transactional event to publish
+     * @throws RuntimeException if publishing fails
+     */
     @Override
     public void publish(String topic, TransactionalEvent message) {
         try {
@@ -126,6 +202,14 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
         }
     }
 
+    /**
+     * Subscribes to events on the specified topic.
+     * Triggers a catchup event to ensure the subscriber receives any missed events.
+     *
+     * @param topic      The topic to subscribe to
+     * @param subscriber The subscriber that will receive events
+     * @return true if subscription was successful, false otherwise
+     */
     @Override
     public boolean subscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
         var subscribed = tb.subscribe(topic, subscriber);
@@ -133,11 +217,25 @@ public class RemotePersistentConsumer implements AutoCloseable, MessageBroker<Tr
         return subscribed;
     }
 
+    /**
+     * Unsubscribes from events on the specified topic.
+     *
+     * @param topic      The topic to unsubscribe from
+     * @param subscriber The subscriber to remove
+     * @return true if unsubscription was successful, false otherwise
+     */
     @Override
     public boolean unsubscribe(String topic, MessageSubscriber<TransactionalEvent> subscriber) {
         return tb.unsubscribe(topic, subscriber);
     }
 
+    /**
+     * Converts a transactional event. In this implementation, returns the event
+     * unchanged.
+     *
+     * @param m The transactional event to convert
+     * @return The same transactional event
+     */
     @Override
     public TransactionalEvent convert(TransactionalEvent m) {
         return m;

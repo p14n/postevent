@@ -26,6 +26,7 @@ public class OrderedProcessor {
     /**
      * Creates a new OrderedProcessor with the specified processing function.
      *
+     * @param systemEventBroker The broker for system events
      * @param processorFunction Function that processes an event with a database
      *                          connection
      *                          and returns true if processing was successful

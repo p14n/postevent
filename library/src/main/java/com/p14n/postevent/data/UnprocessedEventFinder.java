@@ -11,18 +11,46 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Responsible for finding all unprocessed events in the messages table.
- * Unprocessed events have a status of 'u'.
+ * Responsible for finding unprocessed events in the messages table.
+ * Provides methods to query and retrieve events with a status of 'u'
+ * (unprocessed)
+ * using various filtering criteria.
+ *
+ * <p>
+ * The finder uses prepared statements for secure SQL execution and includes
+ * logging for operational visibility. All database operations require an
+ * external
+ * {@link Connection} to be provided.
+ * </p>
+ *
+ * <p>
+ * Example usage:
+ * </p>
+ * 
+ * <pre>{@code
+ * UnprocessedEventFinder finder = new UnprocessedEventFinder();
+ * try (Connection conn = dataSource.getConnection()) {
+ *     List<Event> events = finder.findUnprocessedEvents(conn);
+ *     // Process the events...
+ * }
+ * }</pre>
  */
 public class UnprocessedEventFinder {
 
     private static final Logger logger = LoggerFactory.getLogger(UnprocessedEventFinder.class);
 
     /**
+     * Creates a new UnprocessedEventFinder instance.
+     */
+    public UnprocessedEventFinder() {
+    }
+
+    /**
      * Finds all unprocessed events in the messages table.
+     * Events are ordered by their sequence number (idn) in ascending order.
      * 
      * @param connection Database connection to use
-     * @return List of unprocessed events ordered by creation time (ascending)
+     * @return List of unprocessed events
      * @throws SQLException if a database error occurs
      */
     public List<Event> findUnprocessedEvents(Connection connection) throws SQLException {
@@ -44,11 +72,11 @@ public class UnprocessedEventFinder {
 
     /**
      * Finds unprocessed events for a specific subject.
+     * Events are ordered by creation time in ascending order.
      * 
      * @param connection Database connection to use
      * @param subject    Subject to filter by
-     * @return List of unprocessed events for the subject ordered by creation time
-     *         (ascending)
+     * @return List of unprocessed events for the subject
      * @throws SQLException if a database error occurs
      */
     public List<Event> findUnprocessedEventsBySubject(Connection connection, String subject) throws SQLException {
@@ -72,15 +100,16 @@ public class UnprocessedEventFinder {
 
     /**
      * Finds a limited number of unprocessed events.
+     * Events are ordered by creation time in ascending order.
      * 
      * @param connection Database connection to use
      * @param limit      Maximum number of events to return
-     * @return List of unprocessed events ordered by creation time (ascending),
-     *         limited to the specified count
-     * @throws SQLException if a database error occurs
+     * @return List of unprocessed events, limited to the specified count
+     * @throws SQLException             if a database error occurs
+     * @throws IllegalArgumentException if limit is less than or equal to 0
      */
     public List<Event> findUnprocessedEventsWithLimit(Connection connection, int limit) throws SQLException {
-        logger.atInfo().log("Finding up to " + limit + " unprocessed events");
+        logger.atInfo().log("Finding up to {} unprocessed events", limit);
 
         String sql = "SELECT id, source, type, datacontenttype, dataschema, subject, data, " +
                 "time, idn, topic, traceparent FROM postevent.messages " +
@@ -98,7 +127,6 @@ public class UnprocessedEventFinder {
             }
         }
     }
-
 
     /**
      * Processes a result set and converts each row to an Event object.
@@ -167,7 +195,7 @@ public class UnprocessedEventFinder {
 
             if (rs.next()) {
                 int count = rs.getInt(1);
-                logger.atInfo().log("Found " + count + " unprocessed events");
+                logger.atInfo().log("Found {} unprocessed events", count);
                 return count;
             }
 
