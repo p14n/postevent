@@ -8,7 +8,7 @@
 
 [![Build Status](https://github.com/p14n/postevent/workflows/Test%20PR/badge.svg)](https://github.com/p14n/postevent/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/p14n/postevent)](https://github.com/yourusername/p14n/releases)
+[![Latest Release](https://img.shields.io/github/v/release/p14n/postevent)](https://github.com/p14n/postevent/releases)
 
 A reliable event publishing and consumption system using PostgreSQL and gRPC, following the CloudEvents specification.
 
