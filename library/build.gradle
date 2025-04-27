@@ -1,7 +1,12 @@
+import com.vanniktech.maven.publish.SonatypeHost
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+
 plugins {
     id 'java'
     id 'com.adarshr.test-logger' version '4.0.0'
     id 'com.google.protobuf' version '0.9.2'
+    id "com.vanniktech.maven.publish" version "0.31.0"
 }
 
 compileJava {
@@ -10,7 +15,7 @@ compileJava {
 }
 
 group = 'com.p14n'
-version = '1.0-SNAPSHOT'
+version = '1.0.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -132,4 +137,48 @@ sourceSets {
             srcDirs 'build/generated/source/proto/main/java'
         }
     }
+}
+
+tasks.withType(Jar) {
+   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+mavenPublishing {
+ 
+  configure(new JavaLibrary(new JavadocJar.Javadoc(), true))
+
+  //publishToMavenCentral(SonatypeHost.DEFAULT)
+  // or when publishing to https://s01.oss.sonatype.org
+  //publishToMavenCentral(SonatypeHost.S01)
+  // or when publishing to https://central.sonatype.com/
+  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+
+  signAllPublications()
+
+  coordinates("com.p14n", "postevent", version)
+  
+  pom {
+    name = "Postevent"
+    description = 'A reliable event publishing and consumption system using PostgreSQL and gRPC'
+    inceptionYear = "2025"
+    url = "https://github.com/p14n/postevent/"
+    licenses {
+      license {
+        name = 'MIT License'
+        url = 'https://opensource.org/licenses/MIT'
+      }
+    }
+    developers {
+      developer {
+       id = 'p14n'
+       name = 'Dean Chapman'
+       email = 'dean@p14n.com'
+      }
+    }
+    scm {
+      connection = 'scm:git:git://github.com/p14n/postevent.git'
+      developerConnection = 'scm:git:ssh://github.com:p14n/postevent.git'
+      url = 'https://github.com/p14n/postevent'
+    }
+  }
 }

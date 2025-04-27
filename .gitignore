@@ -270,3 +270,4 @@ bin
 **/terraform.tfstate
 **/terraform.tfstate.backup
 app/infra/tf/terraform.tfvars
+gradle.properties
