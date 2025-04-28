@@ -138,7 +138,7 @@ A ConsumerServer can be configured to consume multiple topics.  Each topic will 
 ## Performance
 Tested on fargate 0.5vCPU/1GB with RDS db.t4g.micro
 - Throughput: 200 events/second
-- Latency: Y ms average
+- Latency: < 50ms ms from topic publish to remote client receive in transaction
 
 ## Contributing
 
