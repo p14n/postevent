@@ -131,7 +131,7 @@ Tested on fargate 0.5vCPU/1GB with RDS db.t4g.micro
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/postevent.git
+git clone https://github.com/p14n/postevent.git
 
 # Start PostgreSQL
 docker run --name postevent -v ./app/postgres:/docker-entrypoint-initdb.d \
@@ -158,7 +158,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- Create an [Issue](https://github.com/yourusername/postevent/issues)
+- Create an [Issue](https://github.com/p14n/postevent/issues)
 
 ## Acknowledgments
 
