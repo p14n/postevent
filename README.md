@@ -56,16 +56,37 @@ com.p14n/postevent {:mvn/version "1.0.0"}
 
 Postevent can be used in both in-process and client/server modes, depending on your architecture.  Use LocalPersistentConsumer for in-process, and ConsumerServer/RemotePersistentConsumer for client/server.
 
+#### In-process (LocalPersistentConsumer)
+
+```java
+var config = new ConfigData("myapp", Set.of("orders"), "dbhost", 5432, 
+    "dbuser", "dbpassword", "dbname", 100);
+
+// Create a local consumer
+try (LocalPersistentConsumer consumer = new LocalPersistentConsumer(config, OpenTelemetry.noop(), 10)) {
+    consumer.start();
+    consumer.subscribe("orders", message -> {
+        System.out.println("Received: " + message);
+    });
+}
+
+// Publish an event
+Publisher.publish(Event.create(...), dataSource, "orders");
+```
+
+#### Across servers (ConsumerServer/RemotePersistentConsumer)
+
 ```java
 // Start a consumer server
-var config = new ConfigData("myapp", Set.of("orders"), "localhost", 5432, 
-    "postgres", "postgres", "postgres", 10);
-var server = new ConsumerServer(dataSource, config, OpenTelemetry.noop());
+var config = new ConfigData("myapp", Set.of("orders"), "dbhost", 5432, 
+    "dbuser", "dbpassword", "dbname", 100);
+
+var server = new ConsumerServer(config, OpenTelemetry.noop());
 server.start(8080);
 
 // Create a remote consumer
 try (RemotePersistentConsumer client = new RemotePersistentConsumer(OpenTelemetry.noop(), 10)) {
-    client.start(Set.of("orders"), dataSource, "localhost", 8080);
+    client.start(Set.of("orders"), dataSource, "consumerhost", 8080);
     client.subscribe("orders", message -> {
         System.out.println("Received: " + message);
     });
@@ -117,7 +138,7 @@ A ConsumerServer can be configured to consume multiple topics.  Each topic will 
 ## Performance
 Tested on fargate 0.5vCPU/1GB with RDS db.t4g.micro
 - Throughput: 200 events/second
-- Latency: Y ms average
+- Latency: < 50ms ms from topic publish to remote client receive in transaction
 
 ## Contributing
 

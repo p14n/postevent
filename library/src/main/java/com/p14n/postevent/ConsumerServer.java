@@ -13,6 +13,7 @@ import com.p14n.postevent.broker.remote.MessageBrokerGrpcServer;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.catchup.remote.CatchupGrpcServer;
 import com.p14n.postevent.data.ConfigData;
+import com.p14n.postevent.db.DatabaseSetup;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -62,6 +63,17 @@ public class ConsumerServer implements AutoCloseable {
     private Server server;
     private AsyncExecutor asyncExecutor;
     OpenTelemetry ot;
+
+    /**
+     * Creates a new ConsumerServer instance with default executor configuration and
+     * database connection pool.
+     *
+     * @param cfg The configuration for the consumer server
+     * @param ot  The OpenTelemetry instance for monitoring and tracing
+     */
+    public ConsumerServer(ConfigData cfg, OpenTelemetry ot) {
+        this(DatabaseSetup.createPool(cfg), cfg, new DefaultExecutor(2), ot);
+    }
 
     /**
      * Creates a new ConsumerServer instance with default executor configuration.
