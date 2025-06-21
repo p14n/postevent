@@ -253,6 +253,72 @@ public class CatchupServiceTest {
         }
     }
 
+    @Test
+    public void testFetchLatestWithNewerMessage() throws Exception {
+        try (Connection connection = pg.getPostgresDatabase().getConnection()) {
+            connection.setAutoCommit(false);
+
+            // Publish some initial events to establish a baseline
+            log.debug("Publishing initial 5 events");
+            for (int i = 1; i <= 5; i++) {
+                Event event = createTestEvent(i);
+                Publisher.publish(event, connection, TEST_TOPIC);
+            }
+
+            // Copy first 3 events to messages table and set HWM to 3
+            copyEventsToMessages(connection, 1);
+            initializeHwm(connection, TEST_TOPIC, 3);
+
+            long initialHwm = getCurrentHwm(connection, TEST_TOPIC);
+            log.debug("Initial HWM: {}", initialHwm);
+
+            // Fetch latest should get the newest message (ID 5)
+            int processedCount = catchupService.fetchLatest(TEST_TOPIC);
+
+            // Should have processed 1 event (the latest one)
+            assertEquals(1, processedCount, "Should have processed 1 latest event");
+
+            // Verify that the latest message was added to the messages table
+            int messagesCount = countMessagesInTable(connection);
+            assertEquals(4, messagesCount, "Should have 4 messages in messages table (3 initial + 1 latest)");
+
+            // Verify that the latest message ID is 5
+            long latestIdInMessages = getMaxIdnFromMessagesTable(connection);
+            assertEquals(5, latestIdInMessages, "Latest message ID should be 5");
+        }
+    }
+
+    @Test
+    public void testFetchLatestWithNoNewerMessage() throws Exception {
+        try (Connection connection = pg.getPostgresDatabase().getConnection()) {
+            connection.setAutoCommit(false);
+
+            // Publish some events
+            log.debug("Publishing 3 events");
+            for (int i = 1; i <= 3; i++) {
+                Event event = createTestEvent(i);
+                Publisher.publish(event, connection, TEST_TOPIC);
+            }
+
+            // Copy all events to messages table and set HWM to the latest
+            copyEventsToMessages(connection, 1);
+            initializeHwm(connection, TEST_TOPIC, 3);
+
+            long initialHwm = getCurrentHwm(connection, TEST_TOPIC);
+            log.debug("Initial HWM: {}", initialHwm);
+
+            // Fetch latest should find no newer messages
+            int processedCount = catchupService.fetchLatest(TEST_TOPIC);
+
+            // Should have processed 0 events
+            assertEquals(0, processedCount, "Should have processed 0 events when no newer messages exist");
+
+            // Verify messages count remains the same
+            int messagesCount = countMessagesInTable(connection);
+            assertEquals(3, messagesCount, "Should still have 3 messages in messages table");
+        }
+    }
+
     /**
      * Helper method to initialize HWM for a subscriber
      */
@@ -295,6 +361,17 @@ public class CatchupServiceTest {
                 ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1);
+            }
+            return 0;
+        }
+    }
+
+    private long getMaxIdnFromMessagesTable(Connection connection) throws Exception {
+        String sql = "SELECT MAX(idn) FROM postevent.messages";
+        try (PreparedStatement stmt = connection.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
             }
             return 0;
         }

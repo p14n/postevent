@@ -17,4 +17,12 @@ public interface CatchupServerInterface {
      * @return A list of events within the specified range
      */
     List<Event> fetchEvents(long startAfter, long end, int maxResults, String topic);
+
+    /**
+     * Gets the latest (highest) message ID for a given topic.
+     *
+     * @param topic The name of the topic
+     * @return The latest message ID, or 0 if no messages exist for the topic
+     */
+    long getLatestMessageId(String topic);
 }

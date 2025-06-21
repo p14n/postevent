@@ -182,10 +182,64 @@ public class CatchupService implements MessageSubscriber<SystemEvent>, OneAtATim
         }
     }
 
+    /**
+     * Fetches the latest message from the server if it's greater than the current HWM
+     * and inserts it into the messages table.
+     * 
+     * @param topicName The name of the topic
+     * @return The number of events processed (0 or 1)
+     */
+    public int fetchLatest(String topicName) {
+        try (Connection conn = datasource.getConnection()) {
+            conn.setAutoCommit(false);
+
+            long currentHwm = getCurrentHwm(conn, topicName);
+            
+            // Get the latest message ID from the server
+            long latestId = catchupServer.getLatestMessageId(topicName);
+
+            LOGGER.info(String.format("Current HWM %d, latest server message ID %d for topic %s",
+                    currentHwm, latestId, topicName));
+
+            if (latestId <= currentHwm) {
+                LOGGER.info("No new messages to fetch for topic: " + topicName);
+                return 0;
+            }
+
+            // Fetch the latest message from the server
+            List<Event> events = catchupServer.fetchEvents(latestId - 1, latestId, 1, topicName);
+
+            if (events.isEmpty()) {
+                LOGGER.info("Latest message not found for topic: " + topicName);
+                return 0;
+            }
+
+            // Write the latest event to the messages table
+            int processedCount = writeEventsToMessagesTable(conn, events);
+
+            LOGGER.info(String.format("Processed %d latest event for topic %s with ID %d",
+                    processedCount, topicName, latestId));
+
+            conn.commit();
+            
+            // Trigger a catchup to fill any gaps
+            if (processedCount > 0) {
+                systemEventBroker.publish(SystemEvent.CatchupRequired.withTopic(topicName));
+            }
+            
+            return processedCount;
+        } catch (SQLException e) {
+            LOGGER.error("Failed to fetch latest message", e);
+            return 0;
+        }
+    }
+
     @Override
     public void onMessage(SystemEvent message) {
         if (Objects.requireNonNull(message) == SystemEvent.CatchupRequired) {
             oneAtATime(() -> catchup(message.topic), () -> onMessage(message));
+        } else if (message == SystemEvent.FetchLatest) {
+            oneAtATime(() -> fetchLatest(message.topic), () -> onMessage(message));
         }
     }
 

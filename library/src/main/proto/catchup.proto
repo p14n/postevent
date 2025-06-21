@@ -10,6 +10,9 @@ package catchup;
 service CatchupService {
   // Fetch events from a specific point
   rpc FetchEvents (FetchEventsRequest) returns (FetchEventsResponse) {}
+  
+  // Get the latest message ID for a topic
+  rpc GetLatestMessageId (GetLatestMessageIdRequest) returns (GetLatestMessageIdResponse) {}
 }
 
 // The request message containing fetch parameters
@@ -23,6 +26,16 @@ message FetchEventsRequest {
 // The response message containing events
 message FetchEventsResponse {
   repeated Event events = 1;
+}
+
+// The request message for getting latest message ID
+message GetLatestMessageIdRequest {
+  string topic = 1;
+}
+
+// The response message containing latest message ID
+message GetLatestMessageIdResponse {
+  int64 latest_id = 1;
 }
 
 // Event message

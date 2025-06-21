@@ -63,6 +63,29 @@ public class CatchupGrpcClient implements CatchupServerInterface, AutoCloseable 
         return events;
     }
 
+    @Override
+    public long getLatestMessageId(String topic) {
+        logger.atInfo()
+                .addArgument(topic)
+                .log("Getting latest message ID for topic {}");
+
+        GetLatestMessageIdRequest request = GetLatestMessageIdRequest.newBuilder()
+                .setTopic(topic)
+                .build();
+
+        GetLatestMessageIdResponse response;
+        try {
+            response = blockingStub.getLatestMessageId(request);
+        } catch (StatusRuntimeException e) {
+            logger.atWarn().setCause(e).log("RPC failed: {}", e.getStatus());
+            throw new RuntimeException("Failed to get latest message ID via gRPC", e);
+        }
+
+        long latestId = response.getLatestId();
+        logger.info("Latest message ID for topic {} is {}", topic, latestId);
+        return latestId;
+    }
+
     private Event convertFromGrpcEvent(com.p14n.postevent.catchup.grpc.Event grpcEvent, String topic) {
         OffsetDateTime time = null;
         if (!grpcEvent.getTime().isEmpty()) {

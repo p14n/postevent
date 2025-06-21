@@ -26,4 +26,8 @@ public class SystemEventBroker extends
         subscribe("system", subscriber);
     }
 
+    public void triggerFetchLatest(String topic) {
+        publish(SystemEvent.FetchLatest.withTopic(topic));
+    }
+
 }
