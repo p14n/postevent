@@ -1,2 +1,2 @@
 rootProject.name = 'postevent'
-include 'library', 'app'
+include 'core', 'debezium', 'grpc', 'app'
