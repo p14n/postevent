@@ -22,20 +22,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.debezium:debezium-api:3.0.1.Final'
-    implementation ('io.debezium:debezium-embedded:3.0.1.Final') {
-        exclude group: 'org.glassfish.jersey.containers', module: 'jersey-container-servlet'
-        exclude group: 'org.glassfish.jersey.inject', module: 'jersey-hk2'
-        exclude group: 'org.eclipse.jetty'
-    }
-    implementation 'io.debezium:debezium-connector-postgres:3.0.1.Final'
-    implementation 'io.debezium:debezium-storage-jdbc:3.0.1.Final'
-    implementation 'org.slf4j:slf4j-api:2.0.9'
-    implementation 'com.zaxxer:HikariCP:6.2.1'
-
-    constraints {
-        implementation 'com.google.guava:guava:32.0.0-jre'
-    }
+    // Dependency on core module
+    implementation project(':core')
+    implementation project(':debezium')
 
     // gRPC dependencies
     implementation 'io.grpc:grpc-netty-shaded:1.53.0'
@@ -48,20 +37,26 @@ dependencies {
     // For code generation
     implementation 'com.google.protobuf:protobuf-java:3.21.7'
     
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+
+    // Security constraint
+    constraints {
+        implementation 'com.google.guava:guava:32.0.0-jre'
+    }
+
+    // Instrumentation for GRPC
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.32.0-alpha'
+    
+    // Test dependencies
+    testImplementation project(path: ':core', configuration: 'tests')
+    testImplementation 'net.jqwik:jqwik:1.8.2'
     testImplementation platform('io.zonky.test.postgres:embedded-postgres-binaries-bom:16.2.0')
     testImplementation 'io.zonky.test:embedded-postgres:2.0.7'
-    testImplementation 'net.jqwik:jqwik:1.8.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
     testRuntimeOnly 'ch.qos.logback:logback-classic:1.4.11'
     testImplementation 'org.mockito:mockito-core:3.12.4'
-
-    // OpenTelemetry core dependencies
-    implementation 'io.opentelemetry:opentelemetry-api:1.32.0'
-    
-    // Instrumentation for GRPC
-    implementation 'io.opentelemetry.instrumentation:opentelemetry-grpc-1.6:1.32.0-alpha'
-
 }
 
 testlogger {
@@ -100,12 +95,6 @@ task fastTest( type: Test ) {
 
     }
 }
-
-jar {
-    manifest {
-    }
-}
-
 // Configure Protobuf plugin
 protobuf {
     protoc {
@@ -129,6 +118,11 @@ sourceSets {
             srcDirs 'build/generated/source/proto/main/grpc'
             srcDirs 'build/generated/source/proto/main/java'
         }
+    }
+}
+
+jar {
+    manifest {
     }
 }
 
