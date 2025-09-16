@@ -1,0 +1,83 @@
+plugins {
+    id 'java'
+    id 'com.adarshr.test-logger' version '4.0.0'
+}
+
+compileJava {
+    sourceCompatibility = 21
+    targetCompatibility = 21
+}
+
+group = 'com.p14n'
+version = '1.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Dependency on core module
+    implementation project(':core')
+
+    // Vert.x dependencies
+    implementation 'io.vertx:vertx-core:4.5.1'
+
+    // OpenTelemetry (from core module)
+    implementation 'io.opentelemetry:opentelemetry-api:1.32.0'
+
+    // Database connection pooling (for examples)
+    implementation 'com.zaxxer:HikariCP:5.0.1'
+
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+
+    // Security constraint
+    constraints {
+        implementation 'com.google.guava:guava:32.0.0-jre'
+    }
+    
+    // Test dependencies
+    testImplementation 'io.vertx:vertx-junit5:4.5.1'
+    testImplementation platform('io.zonky.test.postgres:embedded-postgres-binaries-bom:16.2.0')
+    testImplementation 'io.zonky.test:embedded-postgres:2.0.7'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testRuntimeOnly 'ch.qos.logback:logback-classic:1.4.11'
+    testImplementation 'org.mockito:mockito-core:3.12.4'
+}
+
+testlogger {
+    theme 'standard'
+    showExceptions true
+    showStackTraces true
+    showFullStackTraces false
+    showCauses true
+    slowThreshold 2000
+    showSummary true
+    showSimpleNames false
+    showPassed true
+    showSkipped true
+    showFailed true
+    showStandardStreams false
+    showPassedStandardStreams true
+    showSkippedStandardStreams true
+    showFailedStandardStreams true
+}
+
+test {
+    useJUnitPlatform()
+    maxHeapSize = "1G"
+    minHeapSize = "512M"
+    maxParallelForks = 1
+    failFast = true
+    testLogging.showStandardStreams = true
+}
+
+jar {
+    manifest {
+    }
+}
+
+tasks.withType(Jar) {
+   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
