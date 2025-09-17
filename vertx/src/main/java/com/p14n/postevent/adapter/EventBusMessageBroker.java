@@ -61,8 +61,6 @@ import org.slf4j.LoggerFactory;
  */
 public class EventBusMessageBroker extends EventMessageBroker {
     private static final Logger logger = LoggerFactory.getLogger(EventBusMessageBroker.class);
-
-    private final Vertx vertx;
     private final EventBus eventBus;
     private final DataSource dataSource;
     private final Map<String, MessageConsumer<Event>> consumers = new ConcurrentHashMap<>();
@@ -70,17 +68,16 @@ public class EventBusMessageBroker extends EventMessageBroker {
     /**
      * Creates a new EventBusMessageBroker.
      *
-     * @param vertx      The Vert.x instance to use
+     * @param eventBus   The Vert.x EventBus instance to use
      * @param dataSource The DataSource for database persistence
      * @param executor   The AsyncExecutor for handling asynchronous operations
      * @param ot         OpenTelemetry instance for observability
      * @param name       Name identifier for this broker instance
      */
-    public EventBusMessageBroker(Vertx vertx, DataSource dataSource, AsyncExecutor executor,
+    public EventBusMessageBroker(EventBus eventBus, DataSource dataSource, AsyncExecutor executor,
             OpenTelemetry ot, String name) {
         super(executor, ot, name);
-        this.vertx = vertx;
-        this.eventBus = vertx.eventBus();
+        this.eventBus = eventBus;
         this.dataSource = dataSource;
 
         // Register the Event codec for EventBus serialization
@@ -90,6 +87,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
                 .addArgument(name)
                 .log("EventBusMessageBroker initialized: {}");
     }
+
 
     /**
      * Publishes an event using the dual-write pattern.

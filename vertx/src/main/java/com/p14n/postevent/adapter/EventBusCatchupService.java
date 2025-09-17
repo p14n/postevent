@@ -9,6 +9,7 @@ import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 
 import java.util.List;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,16 +47,17 @@ import org.slf4j.LoggerFactory;
  * // Service is now listening for catchup requests on the EventBus
  * }</pre>
  */
-public class EventBusCatchupService {
+public class EventBusCatchupService implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(EventBusCatchupService.class);
     
-    private static final String FETCH_EVENTS_ADDRESS = "catchup.fetchEvents";
-    private static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.getLatestMessageId";
+    private static final String FETCH_EVENTS_ADDRESS = "catchup.fetch_events.";
+    private static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.get_latest.";
     
     private final CatchupServerInterface catchupServer;
     private final EventBus eventBus;
-    private MessageConsumer<JsonObject> fetchEventsConsumer;
-    private MessageConsumer<JsonObject> getLatestMessageIdConsumer;
+    private List<MessageConsumer<JsonObject>> fetchEventsConsumers;
+    private List<MessageConsumer<JsonObject>> getLatestMessageIdConsumers;
+    private Set<String> topics;
     
     /**
      * Creates a new EventBusCatchupService.
@@ -63,9 +65,10 @@ public class EventBusCatchupService {
      * @param catchupServer The underlying catchup server implementation
      * @param eventBus      The Vert.x EventBus to use for messaging
      */
-    public EventBusCatchupService(CatchupServerInterface catchupServer, EventBus eventBus) {
+    public EventBusCatchupService(CatchupServerInterface catchupServer, EventBus eventBus, Set<String> topics) {
         this.catchupServer = catchupServer;
         this.eventBus = eventBus;
+        this.topics = topics;
     }
     
     /**
@@ -76,15 +79,22 @@ public class EventBusCatchupService {
         logger.atInfo().log("Starting EventBusCatchupService");
         
         // Register consumer for fetchEvents requests
-        fetchEventsConsumer = eventBus.consumer(FETCH_EVENTS_ADDRESS, this::handleFetchEvents);
+        fetchEventsConsumers = topics.stream().map( topic -> {
+            logger.atInfo()
+                    .addArgument(FETCH_EVENTS_ADDRESS+topic)
+                    .log("EventBusCatchupService started, listening on address: {}");
+
+            return eventBus.consumer(FETCH_EVENTS_ADDRESS+topic, this::handleFetchEvents);
+        }).toList();
         
         // Register consumer for getLatestMessageId requests
-        getLatestMessageIdConsumer = eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS, this::handleGetLatestMessageId);
+        getLatestMessageIdConsumers = topics.stream().map(topic -> {
+            logger.atInfo()
+                    .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS+topic)
+                    .log("EventBusCatchupService started, listening on address: {}");
+            return eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS+topic, this::handleGetLatestMessageId);
+        }).toList();
         
-        logger.atInfo()
-            .addArgument(FETCH_EVENTS_ADDRESS)
-            .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS)
-            .log("EventBusCatchupService started, listening on addresses: {} and {}");
     }
     
     /**
@@ -93,14 +103,18 @@ public class EventBusCatchupService {
     public void stop() {
         logger.atInfo().log("Stopping EventBusCatchupService");
         
-        if (fetchEventsConsumer != null) {
-            fetchEventsConsumer.unregister();
-            fetchEventsConsumer = null;
+        if (fetchEventsConsumers != null) {
+            for(var c : fetchEventsConsumers){
+                c.unregister();
+            }
+            fetchEventsConsumers = null;
         }
         
-        if (getLatestMessageIdConsumer != null) {
-            getLatestMessageIdConsumer.unregister();
-            getLatestMessageIdConsumer = null;
+        if (getLatestMessageIdConsumers != null) {
+            for (var c:getLatestMessageIdConsumers){
+                c.unregister();
+            }
+            getLatestMessageIdConsumers = null;
         }
         
         logger.atInfo().log("EventBusCatchupService stopped");
@@ -195,5 +209,10 @@ public class EventBusCatchupService {
                 .log("Error handling getLatestMessageId request");
             message.fail(500, e.getMessage());
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        stop();
     }
 }

@@ -144,11 +144,11 @@ public class VertxEventBusExample {
             // Create message broker that publishes to DB + EventBus
             DefaultExecutor executor = new DefaultExecutor(2);
             messageBroker = new EventBusMessageBroker(
-                    vertx, dataSource, executor, OpenTelemetry.noop(), "vertx-server");
+                    vertx.eventBus(), dataSource, executor, OpenTelemetry.noop(), "vertx-server");
 
             // Create catchup service for EventBus requests
             CatchupServer catchupServer = new CatchupServer(dataSource);
-            catchupService = new EventBusCatchupService(catchupServer, vertx.eventBus());
+            catchupService = new EventBusCatchupService(catchupServer, vertx.eventBus(),Set.of());
             catchupService.start();
 
             System.out.println("🌐 Vert.x EventBus server started");

@@ -53,6 +53,8 @@ public class DatabaseSetup {
     private final String username;
     private final String password;
 
+    private final DataSource ds;
+
     /**
      * Creates a new DatabaseSetup instance using configuration from
      * PostEventConfig.
@@ -74,6 +76,13 @@ public class DatabaseSetup {
         this.jdbcUrl = jdbcUrl;
         this.username = username;
         this.password = password;
+        this.ds = null;
+    }
+    public DatabaseSetup(DataSource ds) {
+        this.jdbcUrl = null;
+        this.username = null;
+        this.password = null;
+        this.ds = ds;
     }
 
     /**
@@ -85,11 +94,24 @@ public class DatabaseSetup {
      * @throws RuntimeException if database operations fail
      */
     public DatabaseSetup setupAll(Set<String> topics) {
+        setupClient();
+        setupServer(topics);
+        setupDebezium();
+        return this;
+    }
+    public DatabaseSetup setupDebezium() {
+        clearOldSlots();
+        return this;
+    }
+    public DatabaseSetup setupServer(Set<String> topics) {
+        createSchemaIfNotExists();
+        topics.stream().forEach(this::createTableIfNotExists);
+        return this;
+    }
+    public DatabaseSetup setupClient() {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
         createContiguousHwmTableIfNotExists();
-        topics.stream().forEach(this::createTableIfNotExists);
-        clearOldSlots();
         return this;
     }
 
@@ -287,6 +309,7 @@ public class DatabaseSetup {
      * @throws SQLException if connection fails
      */
     private Connection getConnection() throws SQLException {
+        if(ds!=null) return ds.getConnection();
         return DriverManager.getConnection(jdbcUrl, username, password);
     }
 
