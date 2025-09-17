@@ -1,4 +1,4 @@
-package com.p14n.postevent.client;
+package com.p14n.postevent.vertx.client;
 
 import com.p14n.postevent.catchup.CatchupServerInterface;
 import com.p14n.postevent.data.Event;
@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import static com.p14n.postevent.vertx.adapter.EventBusCatchupService.FETCH_EVENTS_ADDRESS;
+import static com.p14n.postevent.vertx.adapter.EventBusCatchupService.GET_LATEST_MESSAGE_ID_ADDRESS;
 
 /**
  * Client implementation of CatchupServerInterface that sends requests
@@ -47,8 +49,6 @@ import org.slf4j.LoggerFactory;
 public class EventBusCatchupClient implements CatchupServerInterface {
     private static final Logger logger = LoggerFactory.getLogger(EventBusCatchupClient.class);
 
-    private static final String FETCH_EVENTS_ADDRESS = "catchup.fetchEvents";
-    private static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.getLatestMessageId";
     private static final long DEFAULT_TIMEOUT_SECONDS = 30;
 
     private final EventBus eventBus;
@@ -103,7 +103,7 @@ public class EventBusCatchupClient implements CatchupServerInterface {
         try {
             CompletableFuture<String> future = new CompletableFuture<>();
 
-            eventBus.request(FETCH_EVENTS_ADDRESS, request, reply -> {
+            eventBus.request(FETCH_EVENTS_ADDRESS+topic, request, reply -> {
                 if (reply.succeeded()) {
                     String eventsJson = (String) reply.result().body();
                     future.complete(eventsJson);
@@ -151,7 +151,7 @@ public class EventBusCatchupClient implements CatchupServerInterface {
         try {
             CompletableFuture<JsonObject> future = new CompletableFuture<>();
 
-            eventBus.request(GET_LATEST_MESSAGE_ID_ADDRESS, request, reply -> {
+            eventBus.request(GET_LATEST_MESSAGE_ID_ADDRESS+topic, request, reply -> {
                 if (reply.succeeded()) {
                     JsonObject response = (JsonObject) reply.result().body();
                     future.complete(response);

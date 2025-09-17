@@ -1,4 +1,4 @@
-package com.p14n.postevent.adapter;
+package com.p14n.postevent.vertx.adapter;
 
 import com.p14n.postevent.catchup.CatchupServerInterface;
 import com.p14n.postevent.data.Event;
@@ -15,7 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Service that exposes CatchupServerInterface methods via Vert.x EventBus messaging.
+ * Service that exposes CatchupServerInterface methods via Vert.x EventBus
+ * messaging.
  * This allows remote clients to request catchup operations through the EventBus
  * using a request-reply pattern.
  * 
@@ -29,7 +30,8 @@ import org.slf4j.LoggerFactory;
  * EventBus addresses:
  * <ul>
  * <li>{@code catchup.fetchEvents} - Fetch events within a range</li>
- * <li>{@code catchup.getLatestMessageId} - Get the latest message ID for a topic</li>
+ * <li>{@code catchup.getLatestMessageId} - Get the latest message ID for a
+ * topic</li>
  * </ul>
  * </p>
  * 
@@ -49,16 +51,16 @@ import org.slf4j.LoggerFactory;
  */
 public class EventBusCatchupService implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(EventBusCatchupService.class);
-    
-    private static final String FETCH_EVENTS_ADDRESS = "catchup.fetch_events.";
-    private static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.get_latest.";
-    
+
+    public static final String FETCH_EVENTS_ADDRESS = "catchup.fetch_events.";
+    public static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.get_latest.";
+
     private final CatchupServerInterface catchupServer;
     private final EventBus eventBus;
     private List<MessageConsumer<JsonObject>> fetchEventsConsumers;
     private List<MessageConsumer<JsonObject>> getLatestMessageIdConsumers;
     private Set<String> topics;
-    
+
     /**
      * Creates a new EventBusCatchupService.
      *
@@ -70,60 +72,62 @@ public class EventBusCatchupService implements AutoCloseable {
         this.eventBus = eventBus;
         this.topics = topics;
     }
-    
+
     /**
      * Starts the service by registering EventBus consumers for catchup operations.
-     * This method sets up listeners for both fetchEvents and getLatestMessageId requests.
+     * This method sets up listeners for both fetchEvents and getLatestMessageId
+     * requests.
      */
     public void start() {
         logger.atInfo().log("Starting EventBusCatchupService");
-        
+
         // Register consumer for fetchEvents requests
-        fetchEventsConsumers = topics.stream().map( topic -> {
+        fetchEventsConsumers = topics.stream().map(topic -> {
             logger.atInfo()
-                    .addArgument(FETCH_EVENTS_ADDRESS+topic)
+                    .addArgument(FETCH_EVENTS_ADDRESS + topic)
                     .log("EventBusCatchupService started, listening on address: {}");
 
-            return eventBus.consumer(FETCH_EVENTS_ADDRESS+topic, this::handleFetchEvents);
+            return eventBus.consumer(FETCH_EVENTS_ADDRESS + topic, this::handleFetchEvents);
         }).toList();
-        
+
         // Register consumer for getLatestMessageId requests
         getLatestMessageIdConsumers = topics.stream().map(topic -> {
             logger.atInfo()
-                    .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS+topic)
+                    .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS + topic)
                     .log("EventBusCatchupService started, listening on address: {}");
-            return eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS+topic, this::handleGetLatestMessageId);
+            return eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS + topic, this::handleGetLatestMessageId);
         }).toList();
-        
+
     }
-    
+
     /**
      * Stops the service by unregistering EventBus consumers.
      */
     public void stop() {
         logger.atInfo().log("Stopping EventBusCatchupService");
-        
+
         if (fetchEventsConsumers != null) {
-            for(var c : fetchEventsConsumers){
+            for (var c : fetchEventsConsumers) {
                 c.unregister();
             }
             fetchEventsConsumers = null;
         }
-        
+
         if (getLatestMessageIdConsumers != null) {
-            for (var c:getLatestMessageIdConsumers){
+            for (var c : getLatestMessageIdConsumers) {
                 c.unregister();
             }
             getLatestMessageIdConsumers = null;
         }
-        
+
         logger.atInfo().log("EventBusCatchupService stopped");
     }
-    
+
     /**
      * Handles fetchEvents requests from the EventBus.
      * 
      * Expected request format:
+     * 
      * <pre>{@code
      * {
      *   "fromId": 100,
@@ -137,43 +141,44 @@ public class EventBusCatchupService implements AutoCloseable {
      */
     private void handleFetchEvents(Message<JsonObject> message) {
         JsonObject request = message.body();
-        
+
         try {
             long fromId = request.getLong("fromId");
             long toId = request.getLong("toId");
             int limit = request.getInteger("limit");
             String topic = request.getString("topic");
-            
+
             logger.atDebug()
-                .addArgument(fromId)
-                .addArgument(toId)
-                .addArgument(limit)
-                .addArgument(topic)
-                .log("Handling fetchEvents request: fromId={}, toId={}, limit={}, topic={}");
-            
+                    .addArgument(fromId)
+                    .addArgument(toId)
+                    .addArgument(limit)
+                    .addArgument(topic)
+                    .log("Handling fetchEvents request: fromId={}, toId={}, limit={}, topic={}");
+
             List<Event> events = catchupServer.fetchEvents(fromId, toId, limit, topic);
-            
+
             // Serialize events to JSON and reply
             String eventsJson = Json.encode(events);
             message.reply(eventsJson);
-            
+
             logger.atDebug()
-                .addArgument(events.size())
-                .addArgument(topic)
-                .log("Successfully fetched {} events for topic {}", events.size(), topic);
-            
+                    .addArgument(events.size())
+                    .addArgument(topic)
+                    .log("Successfully fetched {} events for topic {}", events.size(), topic);
+
         } catch (Exception e) {
             logger.atError()
-                .setCause(e)
-                .log("Error handling fetchEvents request");
+                    .setCause(e)
+                    .log("Error handling fetchEvents request");
             message.fail(500, e.getMessage());
         }
     }
-    
+
     /**
      * Handles getLatestMessageId requests from the EventBus.
      * 
      * Expected request format:
+     * 
      * <pre>{@code
      * {
      *   "topic": "orders"
@@ -184,29 +189,29 @@ public class EventBusCatchupService implements AutoCloseable {
      */
     private void handleGetLatestMessageId(Message<JsonObject> message) {
         JsonObject request = message.body();
-        
+
         try {
             String topic = request.getString("topic");
-            
+
             logger.atDebug()
-                .addArgument(topic)
-                .log("Handling getLatestMessageId request for topic: {}");
-            
+                    .addArgument(topic)
+                    .log("Handling getLatestMessageId request for topic: {}");
+
             long latestId = catchupServer.getLatestMessageId(topic);
-            
+
             // Create response with latest ID
             JsonObject response = new JsonObject().put("latestId", latestId);
             message.reply(response);
-            
+
             logger.atDebug()
-                .addArgument(latestId)
-                .addArgument(topic)
-                .log("Successfully retrieved latest message ID {} for topic {}", latestId, topic);
-            
+                    .addArgument(latestId)
+                    .addArgument(topic)
+                    .log("Successfully retrieved latest message ID {} for topic {}", latestId, topic);
+
         } catch (Exception e) {
             logger.atError()
-                .setCause(e)
-                .log("Error handling getLatestMessageId request");
+                    .setCause(e)
+                    .log("Error handling getLatestMessageId request");
             message.fail(500, e.getMessage());
         }
     }

@@ -1,11 +1,13 @@
-package com.p14n.postevent;
+package com.p14n.postevent.vertx;
 
-import com.p14n.postevent.adapter.EventBusMessageBroker;
+import com.p14n.postevent.Publisher;
+import com.p14n.postevent.db.DatabaseSetup;
+import com.p14n.postevent.vertx.adapter.EventBusMessageBroker;
 import com.p14n.postevent.broker.*;
 import com.p14n.postevent.catchup.CatchupService;
 import com.p14n.postevent.catchup.PersistentBroker;
 import com.p14n.postevent.catchup.UnprocessedSubmitter;
-import com.p14n.postevent.client.EventBusCatchupClient;
+import com.p14n.postevent.vertx.client.EventBusCatchupClient;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 import io.opentelemetry.api.OpenTelemetry;
 import io.vertx.core.eventbus.EventBus;
@@ -42,6 +44,8 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             logger.atError().log("Consumer client already started");
             throw new IllegalStateException("Already started");
         }
+        var db = new DatabaseSetup(ds);
+        db.setupClient();
 
         try {
             seb = new SystemEventBroker(asyncExecutor, ot);
@@ -72,6 +76,7 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             closeables = List.of(pb, seb, tb);
 
             logger.atInfo().log("Consumer client started successfully");
+
 
         } catch (Exception e) {
             logger.atError()

@@ -1,4 +1,4 @@
-package com.p14n.postevent.codec;
+package com.p14n.postevent.vertx.codec;
 
 import com.p14n.postevent.data.Event;
 import io.vertx.core.buffer.Buffer;

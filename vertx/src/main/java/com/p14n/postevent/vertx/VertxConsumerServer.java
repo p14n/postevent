@@ -1,7 +1,7 @@
-package com.p14n.postevent;
+package com.p14n.postevent.vertx;
 
-import com.p14n.postevent.adapter.EventBusCatchupService;
-import com.p14n.postevent.adapter.EventBusMessageBroker;
+import com.p14n.postevent.vertx.adapter.EventBusCatchupService;
+import com.p14n.postevent.vertx.adapter.EventBusMessageBroker;
 import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.catchup.CatchupServer;
 import com.p14n.postevent.db.DatabaseSetup;
@@ -39,6 +39,9 @@ public class VertxConsumerServer {
         var catchupService = new EventBusCatchupService(catchupServer,eb,topics);
 
         closeables = List.of(catchupService, mb, asyncExecutor);
+        System.out.println("🌐 Vert.x EventBus server started");
+        //System.out.println("🛑 Vert.x EventBus server stopped");
+
     }
 
 }

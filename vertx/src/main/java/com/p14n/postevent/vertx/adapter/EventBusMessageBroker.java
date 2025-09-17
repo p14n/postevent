@@ -1,13 +1,12 @@
-package com.p14n.postevent.adapter;
+package com.p14n.postevent.vertx.adapter;
 
 import com.p14n.postevent.Publisher;
 import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
-import com.p14n.postevent.codec.EventCodec;
+import com.p14n.postevent.vertx.codec.EventCodec;
 import com.p14n.postevent.data.Event;
 import io.opentelemetry.api.OpenTelemetry;
-import io.vertx.core.Vertx;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 
