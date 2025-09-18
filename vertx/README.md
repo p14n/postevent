@@ -8,7 +8,7 @@ VertxConsumerServer - sets up DDL for given topics and starts catchup for those 
 VertxPersistentConsumer - consumes events from vertx eventbus.  Creates system event bus and catchup client, handles translation between vertx and postevent on the transactional consumer side.
 
 Todo
-[] Implement autoclose on new classes
-[] Adapt classes to use vertx threading model
+ - [x] Implement autoclose on new classes
+ - [ ] Adapt classes to use vertx threading model
 
 

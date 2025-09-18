@@ -51,11 +51,6 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             seb = new SystemEventBroker(asyncExecutor, ot);
             tb = new TransactionalBroker(ds, asyncExecutor, ot, seb);
             var pb = new PersistentBroker<>(tb, ds, seb);
-            //var client = new MessageBrokerGrpcClient(asyncExecutor, ot, channel); // needs fixed threads
-            //var catchupClient = new CatchupGrpcClient(channel);
-
-            //Create a client that can listen to system events, register with seb
-            //register the pb with the eb for all topics
             var catchupClient = new EventBusCatchupClient(eb);
 
             for (var topic : topics) {

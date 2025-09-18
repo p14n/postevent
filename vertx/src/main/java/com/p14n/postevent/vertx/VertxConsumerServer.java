@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-public class VertxConsumerServer {
+public class VertxConsumerServer implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(VertxConsumerServer.class);
 
     private DataSource ds;
@@ -40,8 +40,20 @@ public class VertxConsumerServer {
 
         closeables = List.of(catchupService, mb, asyncExecutor);
         System.out.println("🌐 Vert.x EventBus server started");
-        //System.out.println("🛑 Vert.x EventBus server stopped");
 
     }
 
+    @Override
+    public void close() {
+        if(closeables != null){
+            for(var c : closeables){
+                try {
+                    c.close();
+                } catch (Exception e){
+
+                }
+            }
+        }
+        System.out.println("🛑 Vert.x EventBus server stopped");
+    }
 }
