@@ -36,7 +36,7 @@ public class VertxConsumerServer implements AutoCloseable {
         var db = new DatabaseSetup(ds);
         db.setupServer(topics);
         var catchupServer = new CatchupServer(ds);
-        var catchupService = new EventBusCatchupService(catchupServer,eb,topics);
+        var catchupService = new EventBusCatchupService(catchupServer,eb,topics,this.asyncExecutor);
 
         closeables = List.of(catchupService, mb, asyncExecutor);
         System.out.println("🌐 Vert.x EventBus server started");

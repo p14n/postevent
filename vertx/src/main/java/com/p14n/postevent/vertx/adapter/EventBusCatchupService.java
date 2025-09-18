@@ -1,5 +1,6 @@
 package com.p14n.postevent.vertx.adapter;
 
+import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.catchup.CatchupServerInterface;
 import com.p14n.postevent.data.Event;
 import io.vertx.core.eventbus.EventBus;
@@ -60,6 +61,7 @@ public class EventBusCatchupService implements AutoCloseable {
     private List<MessageConsumer<JsonObject>> fetchEventsConsumers;
     private List<MessageConsumer<JsonObject>> getLatestMessageIdConsumers;
     private Set<String> topics;
+    private AsyncExecutor executor;
 
     /**
      * Creates a new EventBusCatchupService.
@@ -67,10 +69,14 @@ public class EventBusCatchupService implements AutoCloseable {
      * @param catchupServer The underlying catchup server implementation
      * @param eventBus      The Vert.x EventBus to use for messaging
      */
-    public EventBusCatchupService(CatchupServerInterface catchupServer, EventBus eventBus, Set<String> topics) {
+    public EventBusCatchupService(CatchupServerInterface catchupServer,
+                                  EventBus eventBus,
+                                  Set<String> topics,
+                                  AsyncExecutor executor) {
         this.catchupServer = catchupServer;
         this.eventBus = eventBus;
         this.topics = topics;
+        this.executor = executor;
     }
 
     /**
@@ -155,16 +161,29 @@ public class EventBusCatchupService implements AutoCloseable {
                     .addArgument(topic)
                     .log("Handling fetchEvents request: fromId={}, toId={}, limit={}, topic={}");
 
-            List<Event> events = catchupServer.fetchEvents(fromId, toId, limit, topic);
+            executor.submit(() -> {
 
-            // Serialize events to JSON and reply
-            String eventsJson = Json.encode(events);
-            message.reply(eventsJson);
+                try{
+                    List<Event> events = catchupServer.fetchEvents(fromId, toId, limit, topic);
 
-            logger.atDebug()
-                    .addArgument(events.size())
-                    .addArgument(topic)
-                    .log("Successfully fetched {} events for topic {}", events.size(), topic);
+                    // Serialize events to JSON and reply
+                    String eventsJson = Json.encode(events);
+                    message.reply(eventsJson);
+
+                    logger.atDebug()
+                            .addArgument(events.size())
+                            .addArgument(topic)
+                            .log("Successfully fetched {} events for topic {}", events.size(), topic);
+
+                } catch (Exception e){
+                    logger.atError()
+                            .setCause(e)
+                            .log("Error handling fetchEvents request");
+                    message.fail(500, e.getMessage());
+
+                }
+                return null;
+            });
 
         } catch (Exception e) {
             logger.atError()

@@ -63,6 +63,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
     private final EventBus eventBus;
     private final DataSource dataSource;
     private final Map<String, MessageConsumer<Event>> consumers = new ConcurrentHashMap<>();
+    private final AsyncExecutor executor;
 
     /**
      * Creates a new EventBusMessageBroker.
@@ -78,7 +79,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
         super(executor, ot, name);
         this.eventBus = eventBus;
         this.dataSource = dataSource;
-
+        this.executor = executor;
         // Register the Event codec for EventBus serialization
         eventBus.registerDefaultCodec(Event.class, new EventCodec());
 
@@ -86,7 +87,6 @@ public class EventBusMessageBroker extends EventMessageBroker {
                 .addArgument(name)
                 .log("EventBusMessageBroker initialized: {}");
     }
-
 
     /**
      * Publishes an event using the dual-write pattern.
@@ -103,17 +103,32 @@ public class EventBusMessageBroker extends EventMessageBroker {
                 .log("Publishing event to topic {} with id {}");
 
         try {
+
+            executor.submit(() -> {
+                try {
+                    Publisher.publish(event, dataSource, topic);
+
+                    // Then, publish to EventBus for real-time distribution
+                    String eventBusAddress = "events." + topic;
+                    eventBus.publish(eventBusAddress, event);
+
+                    logger.atDebug()
+                            .addArgument(topic)
+                            .addArgument(event.id())
+                            .log("Successfully published event to topic {} with id {}");
+
+                } catch (Exception e) {
+                    logger.atError()
+                            .addArgument(topic)
+                            .addArgument(event.id())
+                            .setCause(e)
+                            .log("Failed to publish event to topic {} with id {}");
+
+                }
+                return null;
+            });
+
             // First, persist to database using existing Publisher
-            Publisher.publish(event, dataSource, topic);
-
-            // Then, publish to EventBus for real-time distribution
-            String eventBusAddress = "events." + topic;
-            eventBus.publish(eventBusAddress, event);
-
-            logger.atDebug()
-                    .addArgument(topic)
-                    .addArgument(event.id())
-                    .log("Successfully published event to topic {} with id {}");
 
         } catch (Exception e) {
             logger.atError()
@@ -148,7 +163,18 @@ public class EventBusMessageBroker extends EventMessageBroker {
                     .log("Received event on topic {} with id {}");
 
             try {
-                subscriber.onMessage(event);
+                executor.submit(() -> {
+                    try {
+                        subscriber.onMessage(event);
+                    } catch (Exception e) {
+                        logger.atError()
+                                .addArgument(topic)
+                                .addArgument(event.id())
+                                .setCause(e)
+                                .log("Error processing event on topic {} with id {}");
+                    }
+                    return null;
+                });
             } catch (Exception e) {
                 logger.atError()
                         .addArgument(topic)

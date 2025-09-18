@@ -103,7 +103,7 @@ public class EventBusCatchupClient implements CatchupServerInterface {
         try {
             CompletableFuture<String> future = new CompletableFuture<>();
 
-            eventBus.request(FETCH_EVENTS_ADDRESS+topic, request, reply -> {
+            eventBus.request(FETCH_EVENTS_ADDRESS + topic, request, reply -> {
                 if (reply.succeeded()) {
                     String eventsJson = (String) reply.result().body();
                     future.complete(eventsJson);
@@ -151,7 +151,7 @@ public class EventBusCatchupClient implements CatchupServerInterface {
         try {
             CompletableFuture<JsonObject> future = new CompletableFuture<>();
 
-            eventBus.request(GET_LATEST_MESSAGE_ID_ADDRESS+topic, request, reply -> {
+            eventBus.request(GET_LATEST_MESSAGE_ID_ADDRESS + topic, request, reply -> {
                 if (reply.succeeded()) {
                     JsonObject response = (JsonObject) reply.result().body();
                     future.complete(response);
