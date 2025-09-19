@@ -17,11 +17,7 @@ repositories {
 
 dependencies {
     // Core database and connection pooling
-    implementation 'com.zaxxer:HikariCP:6.2.1'
     implementation 'org.slf4j:slf4j-api:2.0.9'
-
-    // Guava for utilities
-    implementation 'com.google.guava:guava:32.0.0-jre'
 
     // OpenTelemetry core dependencies
     implementation 'io.opentelemetry:opentelemetry-api:1.32.0'

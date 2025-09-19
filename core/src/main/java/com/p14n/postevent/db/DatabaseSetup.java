@@ -1,7 +1,6 @@
 package com.p14n.postevent.db;
 
 import com.p14n.postevent.data.PostEventConfig;
-import com.zaxxer.hikari.HikariDataSource;
 
 import javax.sql.DataSource;
 
@@ -35,16 +34,14 @@ import java.util.Set;
  * Example usage:
  * </p>
  * 
- * <pre>{@code
+ * <pre>
+ * {@code
  * PostEventConfig config = // initialize configuration
  * DatabaseSetup setup = new DatabaseSetup(config);
  * 
  * // Setup all required tables for given topics
  * setup.setupAll(Set.of("orders", "inventory"));
  * 
- * // Create connection pool
- * DataSource pool = DatabaseSetup.createPool(config);
- * }</pre>
  */
 public class DatabaseSetup {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseSetup.class);
@@ -78,6 +75,7 @@ public class DatabaseSetup {
         this.password = password;
         this.ds = null;
     }
+
     public DatabaseSetup(DataSource ds) {
         this.jdbcUrl = null;
         this.username = null;
@@ -99,15 +97,18 @@ public class DatabaseSetup {
         setupDebezium();
         return this;
     }
+
     public DatabaseSetup setupDebezium() {
         clearOldSlots();
         return this;
     }
+
     public DatabaseSetup setupServer(Set<String> topics) {
         createSchemaIfNotExists();
         topics.stream().forEach(this::createTableIfNotExists);
         return this;
     }
+
     public DatabaseSetup setupClient() {
         createSchemaIfNotExists();
         createMessagesTableIfNotExists();
@@ -309,22 +310,9 @@ public class DatabaseSetup {
      * @throws SQLException if connection fails
      */
     private Connection getConnection() throws SQLException {
-        if(ds!=null) return ds.getConnection();
+        if (ds != null)
+            return ds.getConnection();
         return DriverManager.getConnection(jdbcUrl, username, password);
-    }
-
-    /**
-     * Creates and configures a connection pool using HikariCP.
-     *
-     * @param cfg Configuration containing database connection details
-     * @return Configured DataSource
-     */
-    public static DataSource createPool(PostEventConfig cfg) {
-        HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(cfg.jdbcUrl());
-        ds.setUsername(cfg.dbUser());
-        ds.setPassword(cfg.dbPassword());
-        return ds;
     }
 
 }
