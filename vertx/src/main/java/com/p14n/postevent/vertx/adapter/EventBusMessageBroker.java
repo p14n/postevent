@@ -11,6 +11,8 @@ import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
 
 import javax.sql.DataSource;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -62,7 +64,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
     private static final Logger logger = LoggerFactory.getLogger(EventBusMessageBroker.class);
     private final EventBus eventBus;
     private final DataSource dataSource;
-    private final Map<String, MessageConsumer<Event>> consumers = new ConcurrentHashMap<>();
+    private final Map<String, List<MessageConsumer<Event>>> consumers = new ConcurrentHashMap<>();
     private final AsyncExecutor executor;
 
     /**
@@ -185,7 +187,13 @@ public class EventBusMessageBroker extends EventMessageBroker {
         });
 
         // Store consumer for potential cleanup
-        consumers.put(topic, consumer);
+        consumers.compute(topic, (k,l) -> {
+            if(l == null){
+                l = new ArrayList<>();
+            }
+            l.add(consumer);
+            return l;
+        });
 
         logger.atInfo()
                 .addArgument(topic)
@@ -199,9 +207,11 @@ public class EventBusMessageBroker extends EventMessageBroker {
      * @param topic The topic to unsubscribe from
      */
     public void unsubscribe(String topic) {
-        MessageConsumer<Event> consumer = consumers.remove(topic);
-        if (consumer != null) {
-            consumer.unregister();
+        List<MessageConsumer<Event>> consumerList = consumers.remove(topic);
+        if (consumerList != null) {
+            for(var consumer: consumerList){
+                consumer.unregister();
+            }
             logger.atInfo()
                     .addArgument(topic)
                     .log("Unsubscribed from topic: {}");
@@ -216,7 +226,9 @@ public class EventBusMessageBroker extends EventMessageBroker {
         logger.atInfo().log("Closing EventBusMessageBroker");
 
         // Unregister all consumers
-        consumers.values().forEach(MessageConsumer::unregister);
+        consumers.values().forEach( l -> {
+            l.forEach(MessageConsumer::unregister);
+        });
         consumers.clear();
 
         super.close();

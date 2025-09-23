@@ -85,24 +85,29 @@ public class EventBusCatchupService implements AutoCloseable {
      * requests.
      */
     public void start() {
-        logger.atInfo().log("Starting EventBusCatchupService");
+        if(fetchEventsConsumers == null) {
 
-        // Register consumer for fetchEvents requests
-        fetchEventsConsumers = topics.stream().map(topic -> {
-            logger.atInfo()
-                    .addArgument(FETCH_EVENTS_ADDRESS + topic)
-                    .log("EventBusCatchupService started, listening on address: {}");
+            logger.atInfo().log("Starting EventBusCatchupService");
 
-            return eventBus.consumer(FETCH_EVENTS_ADDRESS + topic, this::handleFetchEvents);
-        }).toList();
+            // Register consumer for fetchEvents requests
+            fetchEventsConsumers = topics.stream().map(topic -> {
+                logger.atInfo()
+                        .addArgument(FETCH_EVENTS_ADDRESS + topic)
+                        .log("EventBusCatchupService started, listening on address: {}");
 
-        // Register consumer for getLatestMessageId requests
-        getLatestMessageIdConsumers = topics.stream().map(topic -> {
-            logger.atInfo()
-                    .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS + topic)
-                    .log("EventBusCatchupService started, listening on address: {}");
-            return eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS + topic, this::handleGetLatestMessageId);
-        }).toList();
+                return eventBus.consumer(FETCH_EVENTS_ADDRESS + topic, this::handleFetchEvents);
+            }).toList();
+
+            // Register consumer for getLatestMessageId requests
+            getLatestMessageIdConsumers = topics.stream().map(topic -> {
+                logger.atInfo()
+                        .addArgument(GET_LATEST_MESSAGE_ID_ADDRESS + topic)
+                        .log("EventBusCatchupService started, listening on address: {}");
+                return eventBus.consumer(GET_LATEST_MESSAGE_ID_ADDRESS + topic, this::handleGetLatestMessageId);
+            }).toList();
+        } else {
+            logger.atInfo().log("EventBusCatchupService already started");
+        }
 
     }
 

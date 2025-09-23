@@ -92,7 +92,7 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
 
         for (AutoCloseable c : closeables) {
             try {
-                c.close();
+                if(c != null) c.close();
             } catch (Exception e) {
                 logger.atWarn()
                         .setCause(e)

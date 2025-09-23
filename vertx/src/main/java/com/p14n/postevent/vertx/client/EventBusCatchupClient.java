@@ -1,5 +1,6 @@
 package com.p14n.postevent.vertx.client;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.p14n.postevent.catchup.CatchupServerInterface;
 import com.p14n.postevent.data.Event;
 import io.vertx.core.eventbus.EventBus;
@@ -9,6 +10,7 @@ import io.vertx.core.json.JsonObject;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,109 +76,55 @@ public class EventBusCatchupClient implements CatchupServerInterface {
         this.timeoutSeconds = timeoutSeconds;
     }
 
-    /**
-     * Fetches events within the specified ID range for a topic.
-     * Sends a request to the EventBusCatchupService and waits for the response.
-     *
-     * @param fromId The starting event ID (inclusive)
-     * @param toId   The ending event ID (inclusive)
-     * @param limit  Maximum number of events to return
-     * @param topic  The topic to fetch events from
-     * @return List of events within the specified range
-     * @throws Exception If the request fails or times out
-     */
+
+    private <R> R requestAndDecode(
+            String address,
+            JsonObject payload,
+            Function<Object, R> decoder
+    ) {
+        try {
+            CompletableFuture<Object> fut = new CompletableFuture<>();
+            eventBus.request(address, payload).andThen( ar -> {
+                if (ar.succeeded()) {
+                    fut.complete(ar.result().body());
+                } else {
+                    fut.completeExceptionally(
+                            new RuntimeException("Bus request failed: " + ar.cause().getMessage(), ar.cause())
+                    );
+                }
+            });
+            Object body = fut.get(timeoutSeconds, TimeUnit.SECONDS);
+            return decoder.apply(body);
+        } catch (Exception e) {
+            throw new RuntimeException("Request to " + address + " failed", e);
+        }
+    }
+
     @Override
     public List<Event> fetchEvents(long fromId, long toId, int limit, String topic) {
-        logger.atDebug()
-                .addArgument(fromId)
-                .addArgument(toId)
-                .addArgument(limit)
-                .addArgument(topic)
-                .log("Fetching events: fromId={}, toId={}, limit={}, topic={}");
-
-        JsonObject request = new JsonObject()
+        JsonObject req = new JsonObject()
                 .put("fromId", fromId)
                 .put("toId", toId)
                 .put("limit", limit)
                 .put("topic", topic);
 
-        try {
-            CompletableFuture<String> future = new CompletableFuture<>();
-
-            eventBus.request(FETCH_EVENTS_ADDRESS + topic, request).andThen(reply -> {
-                if (reply.succeeded()) {
-                    String eventsJson = (String) reply.result().body();
-                    future.complete(eventsJson);
-                } else {
-                    future.completeExceptionally(new RuntimeException(
-                            "Failed to fetch events: " + reply.cause().getMessage(), reply.cause()));
-                }
-            });
-
-            String eventsJson = future.get(timeoutSeconds, TimeUnit.SECONDS);
-            List<Event> events = Json.decodeValue(eventsJson, List.class);
-
-            logger.atDebug()
-                    .addArgument(events.size())
-                    .addArgument(topic)
-                    .log("Successfully fetched {} events for topic {}", events.size(), topic);
-
-            return events;
-
-        } catch (Exception e) {
-            logger.atError()
-                    .addArgument(topic)
-                    .setCause(e)
-                    .log("Error fetching events for topic {}", topic);
-            throw new RuntimeException("Failed to fetch events for topic " + topic, e);
-        }
+        // decode the reply-body string into List<Event>
+        return requestAndDecode(
+                FETCH_EVENTS_ADDRESS + topic,
+                req,
+                body -> Json.decodeValue((String) body, List.class )
+        );
     }
 
-    /**
-     * Gets the latest message ID for a specific topic.
-     * Sends a request to the EventBusCatchupService and waits for the response.
-     *
-     * @param topic The topic to get the latest message ID for
-     * @return The latest message ID for the topic
-     * @throws Exception If the request fails or times out
-     */
     @Override
     public long getLatestMessageId(String topic) {
-        logger.atDebug()
-                .addArgument(topic)
-                .log("Getting latest message ID for topic: {}");
+        JsonObject req = new JsonObject().put("topic", topic);
 
-        JsonObject request = new JsonObject().put("topic", topic);
-
-        try {
-            CompletableFuture<JsonObject> future = new CompletableFuture<>();
-
-            eventBus.request(GET_LATEST_MESSAGE_ID_ADDRESS + topic, request).andThen(reply -> {
-                if (reply.succeeded()) {
-                    JsonObject response = (JsonObject) reply.result().body();
-                    future.complete(response);
-                } else {
-                    future.completeExceptionally(new RuntimeException(
-                            "Failed to get latest message ID: " + reply.cause().getMessage(), reply.cause()));
-                }
-            });
-
-            JsonObject response = future.get(timeoutSeconds, TimeUnit.SECONDS);
-            long latestId = response.getLong("latestId");
-
-            logger.atDebug()
-                    .addArgument(latestId)
-                    .addArgument(topic)
-                    .log("Successfully retrieved latest message ID {} for topic {}", latestId, topic);
-
-            return latestId;
-
-        } catch (Exception e) {
-            logger.atError()
-                    .addArgument(topic)
-                    .setCause(e)
-                    .log("Error getting latest message ID for topic {}", topic);
-            throw new RuntimeException("Failed to get latest message ID for topic " + topic, e);
-        }
+        // extract "latestId" from the returned JsonObject
+        return requestAndDecode(
+                GET_LATEST_MESSAGE_ID_ADDRESS + topic,
+                req,
+                body -> ((JsonObject) body).getLong("latestId")
+        );
     }
 }

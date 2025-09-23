@@ -5,6 +5,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.MessageCodec;
 import io.vertx.core.json.Json;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * MessageCodec for serializing Event objects on the Vert.x EventBus.
  * This codec handles the conversion between Event objects and their wire format
@@ -32,7 +34,7 @@ public class EventCodec implements MessageCodec<Event, Event> {
     @Override
     public void encodeToWire(Buffer buffer, Event event) {
         String json = Json.encode(event);
-        byte[] jsonBytes = json.getBytes();
+        byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
         
         // Write length prefix followed by JSON bytes
         buffer.appendInt(jsonBytes.length);
@@ -54,7 +56,7 @@ public class EventCodec implements MessageCodec<Event, Event> {
         
         // Read JSON bytes and convert to string
         byte[] jsonBytes = buffer.getBytes(pos + 4, pos + 4 + length);
-        String json = new String(jsonBytes);
+        String json = new String(jsonBytes,StandardCharsets.UTF_8);
         
         // Deserialize from JSON
         return Json.decodeValue(json, Event.class);
