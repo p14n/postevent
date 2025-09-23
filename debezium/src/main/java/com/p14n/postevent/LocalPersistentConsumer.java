@@ -8,6 +8,7 @@ import com.p14n.postevent.catchup.UnprocessedSubmitter;
 import com.p14n.postevent.data.PostEventConfig;
 import com.p14n.postevent.data.UnprocessedEventFinder;
 import com.p14n.postevent.db.DatabaseSetup;
+import com.p14n.postevent.db.PoolSetup;
 
 import io.opentelemetry.api.OpenTelemetry;
 
@@ -104,7 +105,7 @@ public class LocalPersistentConsumer implements AutoCloseable, MessageBroker<Tra
      * @param batchSize Maximum number of events to process in a batch
      */
     public LocalPersistentConsumer(PostEventConfig cfg, OpenTelemetry ot) {
-        this(DatabaseSetup.createPool(cfg), cfg, new DefaultExecutor(2, 10), ot, 10);
+        this(PoolSetup.createPool(cfg), cfg, new DefaultExecutor(2, 10), ot, 10);
     }
 
     /**

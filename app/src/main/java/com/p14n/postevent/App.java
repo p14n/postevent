@@ -21,7 +21,7 @@ import javax.sql.DataSource;
 import com.p14n.postevent.data.ConfigData;
 import com.p14n.postevent.data.Event;
 import com.p14n.postevent.db.DatabaseSetup;
-
+import com.p14n.postevent.db.PoolSetup;
 import com.p14n.postevent.telemetry.OpenTelemetryFunctions;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
@@ -119,7 +119,7 @@ public class App {
         RemotePersistentConsumer cc = null;
 
         var ot = Opentelemetry.create("postevent");
-        var ds = JdbcTelemetry.create(ot).wrap(DatabaseSetup.createPool(cfg));
+        var ds = JdbcTelemetry.create(ot).wrap(PoolSetup.createPool(cfg));
 
         try {
             if (write.length > 0) {

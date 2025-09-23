@@ -42,6 +42,9 @@ dependencies {
     constraints {
         implementation 'com.google.guava:guava:32.0.0-jre'
     }
+
+    // Database connection pooling
+    implementation 'com.zaxxer:HikariCP:5.0.1'
     
     // Test dependencies
     testImplementation platform('io.zonky.test.postgres:embedded-postgres-binaries-bom:16.2.0')

@@ -3,8 +3,9 @@ package com.p14n.postevent.broker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import static java.lang.String.format;
 
 /**
  * Default implementation of {@link AsyncExecutor} that provides configurable
@@ -49,6 +50,19 @@ public class DefaultExecutor implements AsyncExecutor {
                 this.es = createFixedExecutorService(fixedSize);
         }
 
+        protected ThreadFactory createNamedFactory(String nameFormat,ThreadFactory backingFactory){
+                AtomicLong count = (nameFormat != null) ? new AtomicLong(0) : null;
+                return runnable -> {
+                        Thread thread = backingFactory.newThread(runnable);
+                        if (nameFormat != null) {
+                                thread.setName(format(nameFormat, count.getAndIncrement()));
+                        }
+                        return thread;
+                };
+        }
+        protected ThreadFactory createNamedFactory(String nameFormat) {
+                return createNamedFactory(nameFormat,Executors.defaultThreadFactory());
+        }
         /**
          * Creates a fixed-size thread pool with named threads.
          *
@@ -57,7 +71,7 @@ public class DefaultExecutor implements AsyncExecutor {
          */
         protected ExecutorService createFixedExecutorService(int size) {
                 return Executors.newFixedThreadPool(size,
-                                new ThreadFactoryBuilder().setNameFormat("post-event-fixed-%d").build());
+                        createNamedFactory("post-event-fixed-%d"));
         }
 
         /**
@@ -67,8 +81,7 @@ public class DefaultExecutor implements AsyncExecutor {
          */
         protected ExecutorService createVirtualExecutorService() {
                 return Executors.newThreadPerTaskExecutor(
-                                new ThreadFactoryBuilder().setThreadFactory(Thread.ofVirtual().factory())
-                                                .setNameFormat("post-event-virtual-%d").build());
+                        createNamedFactory("post-event-virtual-%d",Thread.ofVirtual().factory()));
         }
 
         /**
@@ -79,7 +92,7 @@ public class DefaultExecutor implements AsyncExecutor {
          */
         protected ScheduledExecutorService createScheduledExecutorService(int size) {
                 return Executors.newScheduledThreadPool(size,
-                                new ThreadFactoryBuilder().setNameFormat("post-event-scheduled-%d").build());
+                                createNamedFactory("post-event-scheduled-%d"));
         }
 
         @Override
