@@ -1,6 +1,11 @@
+import com.vanniktech.maven.publish.SonatypeHost
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+
 plugins {
     id 'java'
     id 'com.adarshr.test-logger' version '4.0.0'
+    id "com.vanniktech.maven.publish" version "0.31.0"
 }
 
 compileJava {
