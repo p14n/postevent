@@ -14,7 +14,8 @@ import java.nio.charset.StandardCharsets;
  * 
  * <p>
  * The codec uses JSON serialization for simplicity and debugging ease.
- * Events are encoded as JSON strings with a length prefix for efficient parsing.
+ * Events are encoded as JSON strings with a length prefix for efficient
+ * parsing.
  * </p>
  * 
  * <p>
@@ -23,6 +24,14 @@ import java.nio.charset.StandardCharsets;
  * </p>
  */
 public class EventCodec implements MessageCodec<Event, Event> {
+
+    /**
+     * Creates a new EventCodec for serializing Event objects on the Vert.x
+     * EventBus.
+     */
+    public EventCodec() {
+        // Default constructor
+    }
 
     /**
      * Encodes an Event object to the wire format.
@@ -35,7 +44,7 @@ public class EventCodec implements MessageCodec<Event, Event> {
     public void encodeToWire(Buffer buffer, Event event) {
         String json = Json.encode(event);
         byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
-        
+
         // Write length prefix followed by JSON bytes
         buffer.appendInt(jsonBytes.length);
         buffer.appendBytes(jsonBytes);
@@ -53,11 +62,11 @@ public class EventCodec implements MessageCodec<Event, Event> {
     public Event decodeFromWire(int pos, Buffer buffer) {
         // Read length prefix
         int length = buffer.getInt(pos);
-        
+
         // Read JSON bytes and convert to string
         byte[] jsonBytes = buffer.getBytes(pos + 4, pos + 4 + length);
-        String json = new String(jsonBytes,StandardCharsets.UTF_8);
-        
+        String json = new String(jsonBytes, StandardCharsets.UTF_8);
+
         // Deserialize from JSON
         return Json.decodeValue(json, Event.class);
     }

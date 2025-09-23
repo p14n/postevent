@@ -1,8 +1,12 @@
 
+import com.vanniktech.maven.publish.SonatypeHost
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+
 plugins {
     id 'java'
     id 'com.adarshr.test-logger' version '4.0.0'
-    id "com.vanniktech.maven.publish" version "0.34.0"
+    id "com.vanniktech.maven.publish" version "0.31.0"
 }
 
 compileJava {
@@ -83,11 +87,16 @@ tasks.withType(Jar) {
 
 mavenPublishing {
 
+  configure(new JavaLibrary(new JavadocJar.Javadoc(), true))
+
+  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, true)
+  signAllPublications()
+
   coordinates("com.p14n", "postevent-vertx", version)
-  
+
   pom {
     name = "Postevent Vert.x"
-    description = 'A reliable event publishing and consumption system using PostgreSQL and vert.x'
+    description = 'A reliable event publishing and consumption system using PostgreSQL and Vert.x EventBus'
     inceptionYear = "2025"
     url = "https://github.com/p14n/postevent/"
     licenses {

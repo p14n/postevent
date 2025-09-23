@@ -15,28 +15,53 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Vert.x-based consumer server that provides event consumption capabilities
+ * using the EventBus for communication and coordination.
+ *
+ * <p>
+ * This server sets up the necessary infrastructure for event processing
+ * including database setup, message brokers, and catchup services.
+ * </p>
+ */
 public class VertxConsumerServer implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(VertxConsumerServer.class);
 
-    private DataSource ds;
-    //private ConfigData cfg;
+    private final DataSource ds;
     private List<AutoCloseable> closeables;
-    private AsyncExecutor asyncExecutor;
+    private final AsyncExecutor asyncExecutor;
     OpenTelemetry ot;
 
+    /**
+     * Creates a new VertxConsumerServer.
+     *
+     * @param ds            The DataSource for database operations
+     * @param asyncExecutor The async executor for handling operations
+     * @param ot            The OpenTelemetry instance for observability
+     */
     public VertxConsumerServer(DataSource ds, AsyncExecutor asyncExecutor, OpenTelemetry ot) {
         this.ds = ds;
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
     }
 
-    public void start(EventBus eb, EventBusMessageBroker mb, Set<String> topics) throws IOException, InterruptedException {
+    /**
+     * Starts the consumer server with the specified configuration.
+     *
+     * @param eb     The Vert.x EventBus to use for communication
+     * @param mb     The EventBus message broker for event handling
+     * @param topics The set of topics to handle
+     * @throws IOException          If database setup fails
+     * @throws InterruptedException If the operation is interrupted
+     */
+    public void start(EventBus eb, EventBusMessageBroker mb, Set<String> topics)
+            throws IOException, InterruptedException {
         logger.atInfo().log("Starting consumer server");
 
         var db = new DatabaseSetup(ds);
         db.setupServer(topics);
         var catchupServer = new CatchupServer(ds);
-        var catchupService = new EventBusCatchupService(catchupServer,eb,topics,this.asyncExecutor);
+        var catchupService = new EventBusCatchupService(catchupServer, eb, topics, this.asyncExecutor);
 
         closeables = List.of(catchupService, mb, asyncExecutor);
         System.out.println("🌐 Vert.x EventBus server started");
@@ -45,11 +70,11 @@ public class VertxConsumerServer implements AutoCloseable {
 
     @Override
     public void close() {
-        if(closeables != null){
-            for(var c : closeables){
+        if (closeables != null) {
+            for (var c : closeables) {
                 try {
                     c.close();
-                } catch (Exception e){
+                } catch (Exception e) {
 
                 }
             }

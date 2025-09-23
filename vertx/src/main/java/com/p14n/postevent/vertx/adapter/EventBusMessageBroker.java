@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
  * <li>Events are then published to the Vert.x EventBus for real-time
  * distribution</li>
  * </ol>
- * </p>
  * 
  * <p>
  * Subscribers receive events from the EventBus, providing low-latency
@@ -187,8 +186,8 @@ public class EventBusMessageBroker extends EventMessageBroker {
         });
 
         // Store consumer for potential cleanup
-        consumers.compute(topic, (k,l) -> {
-            if(l == null){
+        consumers.compute(topic, (k, l) -> {
+            if (l == null) {
                 l = new ArrayList<>();
             }
             l.add(consumer);
@@ -209,7 +208,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
     public void unsubscribe(String topic) {
         List<MessageConsumer<Event>> consumerList = consumers.remove(topic);
         if (consumerList != null) {
-            for(var consumer: consumerList){
+            for (var consumer : consumerList) {
                 consumer.unregister();
             }
             logger.atInfo()
@@ -226,7 +225,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
         logger.atInfo().log("Closing EventBusMessageBroker");
 
         // Unregister all consumers
-        consumers.values().forEach( l -> {
+        consumers.values().forEach(l -> {
             l.forEach(MessageConsumer::unregister);
         });
         consumers.clear();

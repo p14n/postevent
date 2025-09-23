@@ -20,6 +20,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Vert.x-based persistent consumer that provides transactional event processing
+ * capabilities using the EventBus for coordination.
+ *
+ * <p>
+ * This consumer handles persistent event processing with transactional
+ * guarantees
+ * and integrates with the Vert.x EventBus for distributed coordination.
+ * </p>
+ */
 public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<TransactionalEvent, TransactionalEvent> {
 
     private static final Logger logger = LoggerFactory.getLogger(VertxPersistentConsumer.class);
@@ -31,13 +41,28 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
     OpenTelemetry ot;
     private final int batchSize;
 
+    /**
+     * Creates a new VertxPersistentConsumer.
+     *
+     * @param ot            The OpenTelemetry instance for observability
+     * @param asyncExecutor The async executor for handling operations
+     * @param batchSize     The batch size for processing events
+     */
     public VertxPersistentConsumer(OpenTelemetry ot, AsyncExecutor asyncExecutor, int batchSize) {
         this.asyncExecutor = asyncExecutor;
         this.ot = ot;
         this.batchSize = batchSize;
     }
 
-    public void start(Set<String> topics, DataSource ds,EventBus eb, EventBusMessageBroker mb) {
+    /**
+     * Starts the persistent consumer with the specified configuration.
+     *
+     * @param topics The set of topics to handle
+     * @param ds     The DataSource for database operations
+     * @param eb     The Vert.x EventBus for communication
+     * @param mb     The EventBus message broker for event handling
+     */
+    public void start(Set<String> topics, DataSource ds, EventBus eb, EventBusMessageBroker mb) {
         logger.atInfo().log("Starting consumer client");
 
         if (tb != null) {
@@ -54,7 +79,7 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             var catchupClient = new EventBusCatchupClient(eb);
 
             for (var topic : topics) {
-                mb.subscribeToEventBus(topic,pb);
+                mb.subscribeToEventBus(topic, pb);
             }
             seb.subscribe(new CatchupService(ds, catchupClient, seb));
             seb.subscribe(new UnprocessedSubmitter(seb, ds, new UnprocessedEventFinder(), tb, batchSize));
@@ -71,7 +96,6 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
             closeables = List.of(pb, seb, tb);
 
             logger.atInfo().log("Consumer client started successfully");
-
 
         } catch (Exception e) {
             logger.atError()
@@ -92,7 +116,8 @@ public class VertxPersistentConsumer implements AutoCloseable, MessageBroker<Tra
 
         for (AutoCloseable c : closeables) {
             try {
-                if(c != null) c.close();
+                if (c != null)
+                    c.close();
             } catch (Exception e) {
                 logger.atWarn()
                         .setCause(e)

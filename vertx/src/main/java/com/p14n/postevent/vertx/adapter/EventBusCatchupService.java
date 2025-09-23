@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
  * <li>{@code catchup.getLatestMessageId} - Get the latest message ID for a
  * topic</li>
  * </ul>
- * </p>
  * 
  * <p>
  * Example usage:
@@ -53,7 +52,10 @@ import org.slf4j.LoggerFactory;
 public class EventBusCatchupService implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(EventBusCatchupService.class);
 
+    /** EventBus address prefix for fetch events requests. */
     public static final String FETCH_EVENTS_ADDRESS = "catchup.fetch_events.";
+
+    /** EventBus address prefix for get latest message ID requests. */
     public static final String GET_LATEST_MESSAGE_ID_ADDRESS = "catchup.get_latest.";
 
     private final CatchupServerInterface catchupServer;
@@ -68,11 +70,13 @@ public class EventBusCatchupService implements AutoCloseable {
      *
      * @param catchupServer The underlying catchup server implementation
      * @param eventBus      The Vert.x EventBus to use for messaging
+     * @param topics        The set of topics to handle catchup requests for
+     * @param executor      The async executor for handling requests
      */
     public EventBusCatchupService(CatchupServerInterface catchupServer,
-                                  EventBus eventBus,
-                                  Set<String> topics,
-                                  AsyncExecutor executor) {
+            EventBus eventBus,
+            Set<String> topics,
+            AsyncExecutor executor) {
         this.catchupServer = catchupServer;
         this.eventBus = eventBus;
         this.topics = topics;
@@ -85,7 +89,7 @@ public class EventBusCatchupService implements AutoCloseable {
      * requests.
      */
     public void start() {
-        if(fetchEventsConsumers == null) {
+        if (fetchEventsConsumers == null) {
 
             logger.atInfo().log("Starting EventBusCatchupService");
 
@@ -168,7 +172,7 @@ public class EventBusCatchupService implements AutoCloseable {
 
             executor.submit(() -> {
 
-                try{
+                try {
                     List<Event> events = catchupServer.fetchEvents(fromId, toId, limit, topic);
 
                     // Serialize events to JSON and reply
@@ -180,7 +184,7 @@ public class EventBusCatchupService implements AutoCloseable {
                             .addArgument(topic)
                             .log("Successfully fetched {} events for topic {}", events.size(), topic);
 
-                } catch (Exception e){
+                } catch (Exception e) {
                     logger.atError()
                             .setCause(e)
                             .log("Error handling fetchEvents request");
