@@ -9,7 +9,7 @@ compileJava {
 }
 
 group = 'com.p14n'
-version = '1.0.1-SNAPSHOT'
+version = '1.2.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -77,4 +77,40 @@ jar {
 
 tasks.withType(Jar) {
    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+mavenPublishing {
+ 
+  configure(new JavaLibrary(new JavadocJar.Javadoc(), true))
+
+  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, true)
+
+  signAllPublications()
+
+  coordinates("com.p14n", "postevent-vertx", version)
+  
+  pom {
+    name = "Postevent Vert.x"
+    description = 'A reliable event publishing and consumption system using PostgreSQL and vert.x'
+    inceptionYear = "2025"
+    url = "https://github.com/p14n/postevent/"
+    licenses {
+      license {
+        name = 'MIT License'
+        url = 'https://opensource.org/licenses/MIT'
+      }
+    }
+    developers {
+      developer {
+       id = 'p14n'
+       name = 'Dean Chapman'
+       email = 'dean@p14n.com'
+      }
+    }
+    scm {
+      connection = 'scm:git:git://github.com/p14n/postevent.git'
+      developerConnection = 'scm:git:ssh://github.com:p14n/postevent.git'
+      url = 'https://github.com/p14n/postevent'
+    }
+  }
 }
