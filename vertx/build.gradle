@@ -1,11 +1,8 @@
-import com.vanniktech.maven.publish.SonatypeHost
-import com.vanniktech.maven.publish.JavaLibrary
-import com.vanniktech.maven.publish.JavadocJar
 
 plugins {
     id 'java'
     id 'com.adarshr.test-logger' version '4.0.0'
-    id "com.vanniktech.maven.publish" version "0.31.0"
+    id "com.vanniktech.maven.publish" version "0.34.0"
 }
 
 compileJava {
@@ -85,12 +82,6 @@ tasks.withType(Jar) {
 }
 
 mavenPublishing {
- 
-  configure(new JavaLibrary(new JavadocJar.Javadoc(), true))
-
-  publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, true)
-
-  signAllPublications()
 
   coordinates("com.p14n", "postevent-vertx", version)
   
