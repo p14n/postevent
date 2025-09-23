@@ -77,6 +77,9 @@ public class DatabaseSetup {
     }
 
     public DatabaseSetup(DataSource ds) {
+        if (ds == null) {
+            throw new IllegalArgumentException("DataSource must not be null");
+        }
         this.jdbcUrl = null;
         this.username = null;
         this.password = null;
