@@ -1,2 +1,6 @@
 rootProject.name = 'postevent'
-include 'core', 'debezium', 'grpc', 'vertx', 'app'
+include 'core', 'debezium', 'grpc', 'vertx'
+project(':core').name = 'postevent-core'
+project(':debezium').name = 'postevent-debezium'
+project(':grpc').name = 'postevent-grpc'
+project(':vertx').name = 'postevent-vertx'

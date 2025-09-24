@@ -1,0 +1,17 @@
+plugins {
+    id 'com.vanniktech.maven.publish' version '0.34.0' apply false
+}
+
+subprojects {
+
+    apply plugin: 'java-library'
+    apply plugin: 'com.vanniktech.maven.publish'
+
+    group = 'test'
+    version = '1.0'
+
+    mavenPublishing {
+        publishToMavenCentral(true)
+        signAllPublications()
+    }
+}

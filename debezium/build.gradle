@@ -9,7 +9,7 @@ compileJava {
 }
 
 group = 'com.p14n'
-version = '1.3.0'
+version = '1.3.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     // Dependency on core module
-    implementation project(':core')
+    implementation project(':postevent-core')
     
     // Debezium dependencies
     implementation 'io.debezium:debezium-api:3.0.1.Final'
@@ -89,4 +89,32 @@ jar {
 
 tasks.withType(Jar) {
    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+mavenPublishing {
+
+  pom {
+    name = "Postevent Debezium"
+    description = 'A reliable event publishing and consumption system using PostgreSQL and Debezium'
+    inceptionYear = "2025"
+    url = "https://github.com/p14n/postevent/"
+    licenses {
+      license {
+        name = 'MIT License'
+        url = 'https://opensource.org/licenses/MIT'
+      }
+    }
+    developers {
+      developer {
+       id = 'p14n'
+       name = 'Dean Chapman'
+       email = 'dean@p14n.com'
+      }
+    }
+    scm {
+      connection = 'scm:git:git://github.com/p14n/postevent.git'
+      developerConnection = 'scm:git:ssh://github.com:p14n/postevent.git'
+      url = 'https://github.com/p14n/postevent'
+    }
+  }
 }
