@@ -15,7 +15,7 @@ compileJava {
 }
 
 group = 'com.p14n'
-version = '1.3.2-SNAPSHOT'
+version = '1.3.2'
 
 
 repositories {

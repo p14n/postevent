@@ -154,7 +154,7 @@ public class EventBusMessageBroker extends EventMessageBroker {
 
                 // Then, publish to EventBus for real-time distribution
                 String eventBusAddress = "events." + topic;
-                eventBus.publish(eventBusAddress, event);
+                eventBus.publish(eventBusAddress, event.event());
 
                 logger.atDebug()
                         .addArgument(topic)
