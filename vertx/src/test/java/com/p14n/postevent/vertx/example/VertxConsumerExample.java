@@ -43,7 +43,7 @@ public class VertxConsumerExample {
                     "text",
                     null,
                     "test",
-                    "hello".getBytes(), Instant.now(),1L ,"order",null));
+                    "hello".getBytes(), Instant.now(),null ,"order",null));
 
             client.subscribe("order", message -> {
                 System.out.println("Got message");
@@ -56,7 +56,7 @@ public class VertxConsumerExample {
                     "text",
                     null,
                     "test",
-                    "hello".getBytes(), Instant.now(),2L ,"order",null));
+                    "hello".getBytes(), Instant.now(),null ,"order",null));
 
             latch.await(10, TimeUnit.SECONDS);
 

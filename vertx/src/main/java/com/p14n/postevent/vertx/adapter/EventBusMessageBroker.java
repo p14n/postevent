@@ -108,11 +108,12 @@ public class EventBusMessageBroker extends EventMessageBroker {
 
             executor.submit(() -> {
                 try {
-                    Publisher.publish(event, dataSource, topic);
+                    Long idn = Publisher.publish(event, dataSource, topic);
 
                     // Then, publish to EventBus for real-time distribution
                     String eventBusAddress = "events." + topic;
-                    eventBus.publish(eventBusAddress, event);
+
+                    eventBus.publish(eventBusAddress, event.withIdn(idn));
 
                     logger.atDebug()
                             .addArgument(topic)
@@ -150,11 +151,11 @@ public class EventBusMessageBroker extends EventMessageBroker {
 
             try {
 
-                Publisher.publish(event.event(), event.connection(), topic);
+                Long idn = Publisher.publish(event.event(), event.connection(), topic);
 
                 // Then, publish to EventBus for real-time distribution
                 String eventBusAddress = "events." + topic;
-                eventBus.publish(eventBusAddress, event.event());
+                eventBus.publish(eventBusAddress, event.event().withIdn(idn));
 
                 logger.atDebug()
                         .addArgument(topic)

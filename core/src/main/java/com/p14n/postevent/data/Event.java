@@ -111,4 +111,7 @@ public record Event(
 
         return new Event(id, source, type, datacontenttype, dataschema, subject, data, time, idn, topic, traceparent);
     }
+    public  Event withIdn(Long idn){
+        return new Event(id, source, type, datacontenttype, dataschema, subject, data, time, idn, topic, traceparent);
+    }
 }
