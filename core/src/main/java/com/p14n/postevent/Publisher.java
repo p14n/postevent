@@ -7,6 +7,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import static com.p14n.postevent.db.SQL.setEventOnStatement;
 
@@ -66,7 +67,7 @@ public class Publisher {
      * @throws IllegalArgumentException if the topic is null, empty, or contains
      *                                  invalid characters
      */
-    public static void publish(Event event, Connection connection, String topic) throws SQLException {
+    public static Long publish(Event event, Connection connection, String topic) throws SQLException {
         if (topic == null || topic.trim().isEmpty()) {
             throw new IllegalArgumentException("Topic name cannot be null or empty");
         }
@@ -74,13 +75,18 @@ public class Publisher {
             throw new IllegalArgumentException("Topic name must contain only lowercase letters and underscores");
         }
 
-        String sql = String.format("INSERT INTO postevent.%s (%s) VALUES (%s)",
+        String sql = String.format("INSERT INTO postevent.%s (%s) VALUES (%s) RETURNING idn",
                 topic, SQL.CORE_COLS, SQL.CORE_PH);
 
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             setEventOnStatement(stmt, event);
             stmt.executeUpdate();
+            var rs = stmt.getGeneratedKeys();
+            if(rs.next()){
+                return (Long)rs.getObject(1);
+            }
         }
+        return null;
     }
 
     /**
@@ -94,13 +100,13 @@ public class Publisher {
      * @throws IllegalArgumentException if the topic is null, empty, or contains
      *                                  invalid characters
      */
-    public static void publish(Event event, DataSource ds, String topic) throws SQLException {
+    public static Long publish(Event event, DataSource ds, String topic) throws SQLException {
         if (topic == null || topic.trim().isEmpty() || !topic.matches("[a-z_]+")) {
             throw new IllegalArgumentException("Invalid topic name: must be non-null, non-empty, and only contain lowercase letters and underscores.");
         }
 
         try (Connection c = ds.getConnection()) {
-            publish(event, c, topic);
+            return publish(event, c, topic);
         }
     }
 }
