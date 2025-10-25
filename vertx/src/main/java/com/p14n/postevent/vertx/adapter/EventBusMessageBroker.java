@@ -4,6 +4,7 @@ import com.p14n.postevent.Publisher;
 import com.p14n.postevent.broker.AsyncExecutor;
 import com.p14n.postevent.broker.EventMessageBroker;
 import com.p14n.postevent.broker.MessageSubscriber;
+import com.p14n.postevent.broker.TransactionalEvent;
 import com.p14n.postevent.vertx.codec.EventCodec;
 import com.p14n.postevent.data.Event;
 import io.opentelemetry.api.OpenTelemetry;
@@ -139,6 +140,38 @@ public class EventBusMessageBroker extends EventMessageBroker {
                     .log("Failed to publish event to topic {} with id {}");
             throw new RuntimeException("Failed to publish event", e);
         }
+    }
+    public void publish(String topic, TransactionalEvent event) {
+
+        logger.atDebug()
+                .addArgument(topic)
+                .addArgument(event.id())
+                .log("Publishing event to topic {} with id {}");
+
+            try {
+
+                Publisher.publish(event.event(), event.connection(), topic);
+
+                // Then, publish to EventBus for real-time distribution
+                String eventBusAddress = "events." + topic;
+                eventBus.publish(eventBusAddress, event);
+
+                logger.atDebug()
+                        .addArgument(topic)
+                        .addArgument(event.id())
+                        .log("Successfully published event to topic {} with id {}");
+
+            } catch (Exception e) {
+                logger.atError()
+                        .addArgument(topic)
+                        .addArgument(event.id())
+                        .setCause(e)
+                        .log("Failed to publish event to topic {} with id {}");
+
+            }
+
+            // First, persist to database using existing Publisher
+
     }
 
     /**
